@@ -6,9 +6,9 @@
 const CONFIG = {
     LABEL_NAME: '_booking_request',
     LABEL_NEGATIVE: '_nicht_buchungsrelevant', // Label für abgelehnte Mails
-    MAX_LABELED: 20,     // Stopp nach 4 erfolgreichen Label-Vergaben
-    MAX_SCANNED: 500,   // Stopp nach 200 analysierten E-Mails (egal ob Treffer oder nicht)
-    GEMINI_API_KEY: SECRETS.GEMINI_API_KEY, // Wird aus secrets.js geladen
+    MAX_LABELED: 10000,   // Limit erhöht (war 20)
+    MAX_SCANNED: 10000,   // Limit erhöht (war 500)
+    MAX_SCANNED: 10000,   // Limit erhöht (war 500)
     IGNORED_SENDERS: [
         'speaker@christophholz.com',
         'management@christophholz.com',
@@ -31,91 +31,106 @@ const CONFIG = {
 
 /**
  * Hauptfunktion: Durchsucht Inbox, klassifiziert mit Gemini und labelt.
+ * Läuft in einer Schleife, bis Zeitlimit (5 Min) oder Anzahl (10.000) erreicht ist.
  */
 function processEmails() {
+    const startTime = Date.now();
+    const MAX_EXECUTION_TIME = 1000 * 60 * 5; // 5 Minuten Safety-Limit
+
     const labelPositive = createLabelIfNeeded(CONFIG.LABEL_NAME);
     const labelNegative = createLabelIfNeeded(CONFIG.LABEL_NEGATIVE);
 
-    // Wir holen bis zu MAX_SCANNED Threads
-    // Wir holen mehr Threads (500), da wir viele filtern könnten, aber bis zu MAX_SCANNED (200) verarbeiten wollen
-    const threads = GmailApp.search(`-label:${CONFIG.LABEL_NAME} -label:${CONFIG.LABEL_NEGATIVE}`, 0, 500);
-
     let labeledCount = 0;
     let scannedCount = 0;
+    const BATCH_SIZE = 50; // Kleine Batches für bessere Performance
 
-    Logger.log(`Gefundene Threads (Batch): ${threads.length}`);
+    Logger.log('Starte Massenverarbeitung...');
 
-    for (const thread of threads) {
-        // 1. Prüfen: Haben wir schon genug gelabelt (positiv)?
-        if (labeledCount >= CONFIG.MAX_LABELED) {
-            Logger.log(`STOP: Limit von ${CONFIG.MAX_LABELED} gelabelten E-Mails erreicht.`);
+    while (scannedCount < CONFIG.MAX_SCANNED && labeledCount < CONFIG.MAX_LABELED) {
+
+        // ZEIT-CHECK
+        if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+            Logger.log('ZEITLIMIT ERREICHT (5 Min). Stoppe Skript sauber.');
             break;
         }
 
-        const messages = thread.getMessages();
-        const firstMessage = messages[0];
-        const subject = firstMessage.getSubject();
-        const body = firstMessage.getPlainBody();
-        const sender = firstMessage.getFrom();
+        // Suche Batch
+        const threads = GmailApp.search(`-label:${CONFIG.LABEL_NAME} -label:${CONFIG.LABEL_NEGATIVE}`, 0, BATCH_SIZE);
 
-        // FILTER: Ignorierte Absender prüfen
-        const senderLower = sender.toLowerCase();
-        const isIgnored = CONFIG.IGNORED_SENDERS.some(ignored => senderLower.includes(ignored.toLowerCase()));
-
-        if (isIgnored) {
-            thread.addLabel(labelNegative);
-            Logger.log(`Ignored sender: ${sender} -> Label '${CONFIG.LABEL_NEGATIVE}' applied.`);
-            continue;
-        }
-
-        // FILTER: Interne E-Mails ignorieren
-        if (sender.toLowerCase().includes('speaker@christophholz.com') ||
-            sender.toLowerCase().includes('management@christophholz.com')) {
-            thread.addLabel(labelNegative);
-            Logger.log(`Internal email: ${sender} -> Label '${CONFIG.LABEL_NEGATIVE}' applied.`);
-            continue;
-        }
-
-        // 2. Prüfen: Haben wir schon genug ECHTE Scans durchgeführt?
-        if (scannedCount >= CONFIG.MAX_SCANNED) {
-            Logger.log(`STOP: Limit von ${CONFIG.MAX_SCANNED} analysierten E-Mails erreicht.`);
+        if (threads.length === 0) {
+            Logger.log('Keine weiteren ungelabelten Threads gefunden.');
             break;
         }
 
-        // Zähler erhöhen, da wir diese Mail nun wirklich an die KI senden (oder zumindest bewerten)
-        scannedCount++;
+        Logger.log(`Bearbeite Batch von ${threads.length} Threads...`);
 
-        Logger.log(`[Scan ${scannedCount}/${CONFIG.MAX_SCANNED}] Analysiere: ${subject}...`);
+        for (const thread of threads) {
+            // ZEIT-CHECK (auch innerhalb des Batch prüfen)
+            if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+                break;
+            }
 
-        const isBooking = classifyEmailWithGemini(subject, body, sender);
+            // Global Limit Checks
+            if (labeledCount >= CONFIG.MAX_LABELED || scannedCount >= CONFIG.MAX_SCANNED) {
+                break;
+            }
 
-        if (isBooking) {
-            labeledCount++;
-            thread.addLabel(labelPositive);
-            Logger.log(`--> POSITIV (${labeledCount}/${CONFIG.MAX_LABELED}): Label '${CONFIG.LABEL_NAME}' vergeben.`);
-        } else {
-            thread.addLabel(labelNegative);
-            Logger.log(`--> NEGATIV: Label '${CONFIG.LABEL_NEGATIVE}' vergeben.`);
+            const messages = thread.getMessages();
+            const firstMessage = messages[0];
+            const subject = firstMessage.getSubject();
+            const body = firstMessage.getPlainBody();
+            const sender = firstMessage.getFrom();
+
+            // FILTER: Ignorierte Absender prüfen
+            const senderLower = sender.toLowerCase();
+            const isIgnored = CONFIG.IGNORED_SENDERS.some(ignored => senderLower.includes(ignored.toLowerCase()));
+
+            if (isIgnored) {
+                thread.addLabel(labelNegative);
+                Logger.log(`Ignored sender: ${sender} -> Label '${CONFIG.LABEL_NEGATIVE}' applied.`);
+                // zählt nicht als "scanned" im Sinne von KI-Kosten, aber wir haben es verarbeitet
+                continue;
+            }
+
+            // FILTER: Interne E-Mails ignorieren
+            if (sender.toLowerCase().includes('speaker@christophholz.com') ||
+                sender.toLowerCase().includes('management@christophholz.com')) {
+                thread.addLabel(labelNegative);
+                Logger.log(`Internal email: ${sender} -> Label '${CONFIG.LABEL_NEGATIVE}' applied.`);
+                continue;
+            }
+
+            // Jetzt wirklicher Scan
+            scannedCount++;
+            Logger.log(`[Scan ${scannedCount}] Analysiere: ${subject}...`);
+
+            const isBooking = classifyEmailWithGemini(subject, body, sender);
+
+            if (isBooking) {
+                labeledCount++;
+                thread.addLabel(labelPositive);
+                Logger.log(`--> POSITIV: Label '${CONFIG.LABEL_NAME}' vergeben.`);
+            } else {
+                thread.addLabel(labelNegative);
+                Logger.log(`--> NEGATIV: Label '${CONFIG.LABEL_NEGATIVE}' vergeben.`);
+            }
+
+            // Kurze Pause gegen Rate Limits
+            Utilities.sleep(100);
         }
-
-        // Rate Limiting
-        Utilities.sleep(100);
     }
 
     Logger.log('Fertig.');
-    Logger.log(`Gescannt: ${scannedCount}`);
-    Logger.log(`Gelabelt: ${labeledCount}`);
+    Logger.log(`Gescannt (KI): ${scannedCount}`);
+    Logger.log(`Gelabelt (Positiv): ${labeledCount}`);
 }
 
 /**
  * Ruft die Gemini API auf, um zu prüfen, ob es eine Buchungsanfrage für Christoph Holz ist.
  */
 function classifyEmailWithGemini(subject, body, sender) {
-    if (CONFIG.GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
-        Logger.log('WARNUNG: Kein API Key. Nutze Fallback-Logik.');
-        const text = (subject + ' ' + body).toLowerCase();
-        return text.includes('vortrag') || text.includes('keynote') || text.includes('buchen');
-    }
+    // Fallback entfernt, da Key nun aus SECRETS kommt.
+
 
     const prompt = `
     Analysiere die folgende E-Mail und entscheide, ob es sich um eine **neue, konkrete Buchungsanfrage** oder einen **Lead** für einen Vortrag/Keynote von "Christoph Holz" handelt.
@@ -140,7 +155,7 @@ function classifyEmailWithGemini(subject, body, sender) {
   `;
 
     // Nutzung des Modells gemini-3-flash-preview (Standard, stabil)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${SECRETS.GEMINI_API_KEY}`;
 
     const payload = {
         contents: [{
@@ -186,4 +201,33 @@ function createLabelIfNeeded(name) {
         label = GmailApp.createLabel(name);
     }
     return label;
+}
+
+/**
+ * Richtet einen Trigger ein, der alle 10 Minuten läuft.
+ * Führen Sie diese Funktion EINMAL manuell aus.
+ */
+function setupTrigger() {
+    // Alte Trigger löschen, um Dopplungen zu vermeiden
+    stopAutomation();
+
+    ScriptApp.newTrigger('processEmails')
+        .timeBased()
+        .everyMinutes(10)
+        .create();
+
+    Logger.log('Trigger eingerichtet: "processEmails" läuft alle 10 Minuten.');
+}
+
+/**
+ * Löscht alle Trigger für dieses Skript.
+ */
+function stopAutomation() {
+    const triggers = ScriptApp.getProjectTriggers();
+    for (const trigger of triggers) {
+        if (trigger.getHandlerFunction() === 'processEmails') {
+            ScriptApp.deleteTrigger(trigger);
+        }
+    }
+    Logger.log('Automation gestoppt (Alle Trigger gelöscht).');
 }
