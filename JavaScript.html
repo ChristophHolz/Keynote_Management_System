@@ -357,25 +357,32 @@
                     if (entities) {
                         const entityList = Array.isArray(entities) ? entities : [entities];
                         entityList.forEach(entity => {
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'entity-display-item';
+
+                            // 1. Organistion Typ as Label
+                            const typeLabel = entity.Typ || 'Organisation';
+                            let html = `<div class="entity-org-row"><span class="entity-type-label">${typeLabel}:</span> <span class="entity-org-name">${entity.Organisation || 'TBD'}</span></div>`;
+
+                            // 2. Contacts as label + single line details
                             if (entity.Contacts && Array.isArray(entity.Contacts)) {
                                 entity.Contacts.forEach(contact => {
-                                    const card = document.createElement('div');
-                                    card.className = 'contact-card';
+                                    html += `<div class="entity-contact-row">`;
+                                    html += `<span class="entity-contact-label">Kontakt:</span> `;
+                                    html += `<span class="entity-contact-details">`;
+                                    html += `<span class="contact-name-text">${contact.Name || ''}</span>`;
 
-                                    let html = `<div class="contact-name">${contact.Name || 'Kontakt'}</div>`;
-                                    html += `<div class="contact-actions">`;
                                     if (contact.Email) {
-                                        html += `<a href="mailto:${contact.Email}" class="contact-link" title="${contact.Email}">✉️ Email</a>`;
+                                        html += ` | <a href="mailto:${contact.Email}" class="contact-link">✉️ ${contact.Email}</a>`;
                                     }
                                     if (contact.Phone) {
-                                        html += `<a href="tel:${contact.Phone}" class="contact-link" title="${contact.Phone}">📞 Tel</a>`;
+                                        html += ` | <a href="tel:${contact.Phone}" class="contact-link">📞 ${contact.Phone}</a>`;
                                     }
-                                    html += `</div>`;
-
-                                    card.innerHTML = html;
-                                    contactLinksContainer.appendChild(card);
+                                    html += `</span></div>`;
                                 });
                             }
+                            wrapper.innerHTML = html;
+                            contactLinksContainer.appendChild(wrapper);
                         });
                     }
                 } catch (e) {
