@@ -860,4 +860,32 @@
             page-break-inside: avoid;
         }
     }
+
+    /* Top Status Bar */
+    .top-status-bar {
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: flex-start;
+    }
+
+    .status-select-top {
+        padding: 0.5rem 1.25rem;
+        font-family: var(--font-sans);
+        font-weight: 700;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        border-radius: 999px;
+        border: 2px solid var(--border-color);
+        background: var(--surface-bg);
+        cursor: pointer;
+        transition: var(--transition);
+        outline: none;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .status-select-top:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
 </style>
+```
