@@ -6,11 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Keynote Script Manager</title>
 
-    <!-- Google Fonts: Outfit -->
+    <!-- Google Fonts: Oswald -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <?!= include('Stylesheet'); ?>
 </head>
@@ -19,7 +18,14 @@
     <div class="app-container">
         <header>
             <div class="brand">Synapse Scripts</div>
-            <!-- Future auth or nav here -->
+            <div class="nav-links">
+                <a href="#"
+                    onclick="window.top.location.href='<?= ScriptApp.getService().getUrl() ?>?page=list'; return false;"
+                    class="nav-link">Event-Liste</a>
+                <a href="#"
+                    onclick="window.top.location.href='<?= ScriptApp.getService().getUrl() ?>?page=merge'; return false;"
+                    class="nav-link">Duplikate</a>
+            </div>
         </header>
 
         <main>
@@ -37,23 +43,9 @@
                     </button>
                 </div>
 
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Kunde</th>
-                                <th>Event Details</th>
-                                <th>Status</th>
-                                <th>Aktion</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inquiries-list">
-                            <!-- Dynamic Content loaded via JS -->
-                            <tr>
-                                <td colspan="4" style="text-align: center; color: var(--text-muted);">Lade Daten...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- KANBAN BOARD -->
+                <div id="kanban-board" class="kanban-container">
+                    <div style="padding: 2rem; color: var(--text-muted);">Lade Board...</div>
                 </div>
             </div>
         </main>

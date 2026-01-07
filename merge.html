@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duplikate Zusammenführen</title>
+
+    <!-- Google Fonts: Oswald -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <?!= include('Stylesheet'); ?>
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <div class="brand">Duplikate Zusammenführen</div>
+            <a href="<?= ScriptApp.getService().getUrl() ?>" class="btn btn-secondary">← Zurück zum Board</a>
+        </header>
+
+        <main>
+            <div class="dashboard-container">
+                <div style="margin-bottom: 2rem;">
+                    <h2>Mögliche Duplikate</h2>
+                    <p style="color: var(--text-muted); margin-top: 0.5rem;">
+                        Events mit ähnlichen Namen und Daten werden automatisch erkannt.
+                        Prüfen Sie jeden Vorschlag und bestätigen Sie die Zusammenführung.
+                    </p>
+                </div>
+
+                <div id="duplicates-container">
+                    <div style="padding: 3rem; text-align: center; color: var(--text-muted);">
+                        Lade Duplikate...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Modal -->
+            <div id="preview-modal" class="modal-overlay hidden">
+                <div class="modal" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h3>Zusammengeführtes Ergebnis</h3>
+                        <button class="close-btn" onclick="closePreview()">&times;</button>
+                    </div>
+                    <div class="modal-body" id="preview-content">
+                        <!-- Preview content will be inserted here -->
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closePreview()">Abbrechen</button>
+                        <button class="btn btn-primary" onclick="confirmCurrentMerge()" id="confirm-btn">
+                            Zusammenführen bestätigen
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            let currentPreview = null;
+
+            // Data Service
+            const mergeService = {
+                getDuplicates: async () => {
+                    return new Promise((resolve, reject) => {
+                        google.script.run
+                            .withSuccessHandler(resolve)
+                            .withFailureHandler(reject)
+                            .getDuplicateCandidates();
+                    });
+                },
+
+                preview: async (id1, id2) => {
+                    return new Promise((resolve, reject) => {
+                        google.script.run
+                            .withSuccessHandler(resolve)
+                            .withFailureHandler(reject)
+                            .previewMerge(id1, id2);
+                    });
+                },
+
+                confirm: async (id1, id2, mergedData) => {
+                    return new Promise((resolve, reject) => {
+                        google.script.run
+                            .withSuccessHandler(resolve)
+                            .withFailureHandler(reject)
+                            .confirmMerge(id1, id2, mergedData);
+                    });
+                }
+            };
+
+            // Load duplicates on page load
+            document.addEventListener('DOMContentLoaded', loadDuplicates);
+
+            async function loadDuplicates() {
+                const container = document.getElementById('duplicates-container');
+                container.innerHTML = '<div style="padding: 3rem; text-align: center; color: var(--text-muted);">Lade Duplikate...</div>';
+
+                try {
+                    const duplicates = await mergeService.getDuplicates();
+                    renderDuplicates(duplicates);
+                } catch (error) {
+                    console.error(error);
+                    container.innerHTML = '<div style="padding: 3rem; text-align: center; color: #ef4444;">Fehler beim Laden der Duplikate.</div>';
+                }
+            }
+
+            function renderDuplicates(duplicates) {
+                const container = document.getElementById('duplicates-container');
+
+                if (!duplicates || duplicates.length === 0) {
+                    container.innerHTML = `
+                    <div style="padding: 3rem; text-align: center;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">✓</div>
+                        <h3 style="color: var(--text-muted);">Keine Duplikate gefunden</h3>
+                        <p style="color: var(--text-muted); margin-top: 0.5rem;">Alle Events sind eindeutig.</p>
+                    </div>
+                `;
+                    return;
+                }
+
+                container.innerHTML = duplicates.map((dup, idx) => `
+                <div class="card" style="margin-bottom: 1.5rem;" id="dup-${idx}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem;">
+                        <div style="flex: 1;">
+                            <div style="font-size: 0.875rem; color: var(--text-mut ed); margin-bottom: 0.5rem;">
+                                Event 1
+                            </div>
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">
+                                ${dup.event1}
+                            </div>
+                            <div style="font-size: 0.875rem; color: var(--text-muted);">
+                                📅 ${dup.date1}
+                            </div>
+                        </div>
+
+                        <div style="padding: 0.5rem; color: var(--text-muted);">
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5rem;">⟷</div>
+                                <div style="font-size: 0.75rem; margin-top: 0.25rem;">
+                                    ${dup.similarity}% Ähnlichkeit
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="flex: 1;">
+                            <div style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                                Event 2
+                            </div>
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">
+                                ${dup.event2}
+                            </div>
+                            <div style="font-size: 0.875rem; color: var(--text-muted);">
+                                📅 ${dup.date2}
+                            </div>
+                        </div>
+
+                        <div>
+                            <button class="btn btn-primary" onclick="showPreview('${dup.id1}', '${dup.id2}', ${idx})">
+                                Vorschau
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            }
+
+            window.showPreview = async (id1, id2, dupIndex) => {
+                try {
+                    const preview = await mergeService.preview(id1, id2);
+                    currentPreview = { id1, id2, preview, dupIndex };
+                    displayPreview(preview);
+                    document.getElementById('preview-modal').classList.remove('hidden');
+                } catch (error) {
+                    console.error(error);
+                    alert('Fehler beim Laden der Vorschau: ' + error.message);
+                }
+            };
+
+            function displayPreview(preview) {
+                const content = document.getElementById('preview-content');
+
+                const fields = [
+                    { key: 'Event', label: 'Event' },
+                    { key: 'Event_Entities', label: 'Organisation' },
+                    { key: 'Talk_Date', label: 'Datum' },
+                    { key: 'Talk_Location', label: 'Ort' },
+                    { key: 'Status', label: 'Status' },
+                    { key: 'Netto_Fee', label: 'Honorar' },
+                    { key: 'Notes', label: 'Notizen' }
+                ];
+
+                content.innerHTML = `
+                <div style="background: var(--surface-bg); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.5rem;">
+                    <h4 style="margin-bottom: 1rem; color: var(--text-color);">Zusammengeführtes Event</h4>
+                    ${fields.map(f => `
+                        <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-light);">
+                            <div style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+                                ${f.label}
+                            </div>
+                            <div style="font-weight: 500; color: var(--text-color);">
+                                ${preview[f.key] || '-'}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: #fef3c7; border: 1px solid #fbbf24; border-radius: var(--radius-sm); color: #92400e;">
+                    <strong>⚠️ Hinweis:</strong> Die beiden Original-Events werden dauerhaft gelöscht und durch dieses zusammengeführte Event ersetzt.
+                </div>
+            `;
+            }
+
+            window.closePreview = () => {
+                document.getElementById('preview-modal').classList.add('hidden');
+                currentPreview = null;
+            };
+
+            window.confirmCurrentMerge = async () => {
+                if (!currentPreview) return;
+
+                const btn = document.getElementById('confirm-btn');
+                btn.innerText = 'Zusammenführen...';
+                btn.disabled = true;
+
+                try {
+                    await mergeService.confirm(currentPreview.id1, currentPreview.id2, currentPreview.preview);
+
+                    // Remove the merged pair from UI
+                    const dupCard = document.getElementById(`dup-${currentPreview.dupIndex}`);
+                    if (dupCard) {
+                        dupCard.style.opacity = '0';
+                        setTimeout(() => dupCard.remove(), 300);
+                    }
+
+                    closePreview();
+                    alert('✓ Events erfolgreich zusammengeführt!');
+
+                    // Reload duplicates
+                    setTimeout(() => loadDuplicates(), 500);
+
+                } catch (error) {
+                    console.error(error);
+                    alert('Fehler beim Zusammenführen: ' + error.message);
+                } finally {
+                    btn.innerText = 'Zusammenführen bestätigen';
+                    btn.disabled = false;
+                }
+            };
+
+            // Close modal on outside click
+            document.getElementById('preview-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'preview-modal') closePreview();
+            });
+        })();
+    </script>
+</body>
+
+</html>

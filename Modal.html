@@ -1,0 +1,212 @@
+<div id="editor-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <h3>Anfrage bearbeiten</h3>
+                <div class="modal-nav-container">
+                    <button class="btn-nav" id="prev-event-btn" onclick="navigateEvent(-1)"
+                        title="Vorheriger Lead">&larr;</button>
+                    <button class="btn-nav" id="next-event-btn" onclick="navigateEvent(1)"
+                        title="Nächster Lead">&rarr;</button>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="edit-mode-btn"
+                    onclick="toggleEditMode(true)">Bearbeiten</button>
+            </div>
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="edit-form" class="view-mode">
+                <input type="hidden" id="edit-id">
+
+                <!-- SECTION: CONTENT -->
+                <h3 class="form-section-title">Inhalt & Event</h3>
+
+                <div class="form-group">
+                    <label>Datum / Dauer</label>
+                    <div class="date-duration-row">
+                        <input type="text" id="edit-date" placeholder="Datum (TBD)">
+                        <input type="text" id="edit-duration" placeholder="Min.">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Event Titel (Intern)</label>
+                    <input type="text" id="edit-event" placeholder="Event Name">
+                </div>
+
+                <div class="form-group">
+                    <label>Finaler Titel</label>
+                    <textarea id="edit-final-title" rows="1" placeholder="Der endgültige Titel der Keynote"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Titel-Vorschläge</label>
+                    <textarea id="edit-title-suggestions" rows="2"
+                        placeholder="Vorschläge von KI oder Speaker"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Thema</label>
+                    <input type="text" id="edit-theme" placeholder="Hauptthema">
+                </div>
+
+                <div class="form-group">
+                    <label>Über den Talk</label>
+                    <textarea id="edit-about-talk" rows="3" placeholder="Kurzbeschreibung des Inhalts"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Über den Speaker</label>
+                    <textarea id="edit-about-speaker" rows="3" placeholder="Bio-Text für dieses Event"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Zielgruppe (Composition)</label>
+                    <input type="text" id="edit-audience-comp" placeholder="z.B. Marketing Manager">
+                </div>
+
+                <div class="form-group">
+                    <label>Größe (Audience Size)</label>
+                    <input type="text" id="edit-audience-size" placeholder="z.B. 200">
+                </div>
+
+                <div class="form-group">
+                    <label>Sprache</label>
+                    <select id="edit-language">
+                        <option value="Deutsch">Deutsch</option>
+                        <option value="English">English</option>
+                        <option value="TBD">TBD</option>
+                    </select>
+                </div>
+
+                <!-- SECTION: FINANCIALS -->
+                <h3 class="form-section-title">Finanzen</h3>
+                <div class="form-group">
+                    <label>Gebühr (Netto)</label>
+                    <input type="text" id="edit-fee" placeholder="Honorar">
+                </div>
+
+                <div class="form-group">
+                    <label>Payment Details</label>
+                    <textarea id="edit-payment" rows="2" placeholder="Zahlungsdetails..."></textarea>
+                </div>
+
+                <!-- SECTION: SPEAKER CONTEXT -->
+                <h3 class="form-section-title">Speaker Kontext</h3>
+                <div class="form-group">
+                    <label>Erwartungen an Redner</label>
+                    <textarea id="edit-expectations" rows="3" placeholder="Erwartungen..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>KI Analyse</label>
+                    <textarea id="edit-ai-analysis" rows="4" placeholder="AI Analysis..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Für Moderator</label>
+                    <textarea id="edit-moderator" rows="2" placeholder="Anmoderations-Infos"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Tech Requirements</label>
+                    <textarea id="edit-tech" rows="2" placeholder="Bühne, Mikro, etc."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Handout</label>
+                    <input type="text" id="edit-handout" placeholder="Infos zum Handout">
+                </div>
+
+                <!-- SECTION: LOGISTICS -->
+                <h3 class="form-section-title">Reise & Logistik</h3>
+                <div class="form-group grid-span-full">
+                    <label style="display: flex; justify-content: space-between; align-items: center;">
+                        Hotel
+                        <a id="edit-hotel-link" href="#" target="_blank" class="maps-link" style="display: none;">📍
+                            Route</a>
+                    </label>
+                    <input type="text" id="edit-hotel" placeholder="Hotel-Infos">
+                </div>
+
+                <div class="form-group">
+                    <label>Travel Plan</label>
+                    <textarea id="edit-travel" rows="2" placeholder="Flug, Bahn, etc."></textarea>
+                </div>
+
+                <!-- SECTION: MARKETING & ADMIN -->
+                <h3 class="form-section-title">Marketing & Admin</h3>
+                <div class="form-group">
+                    <label>Event Entities (Organisation)</label>
+                    <div class="form-content">
+                        <div id="edit-contact-links" class="contact-links-container"></div>
+                        <textarea id="edit-entities" rows="1" placeholder="Beteiligte Organisationen"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Referer</label>
+                    <input type="text" id="edit-referer" placeholder="Woher kommt die Anfrage?">
+                </div>
+
+                <div class="form-group">
+                    <label>Kampagne</label>
+                    <input type="text" id="edit-kampagne" placeholder="Marketing-Kampagne">
+                </div>
+
+                <div class="form-group">
+                    <label>ToDo List</label>
+                    <textarea id="edit-todo" rows="3" placeholder="Offene Punkte..."></textarea>
+                </div>
+
+                <!-- SECTION: META -->
+                <h3 class="form-section-title">Metadaten</h3>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="edit-status">
+                        <option value="LEAD">LEAD (Interesse)</option>
+                        <option value="REQUEST">REQUEST (Konkrete Anfrage)</option>
+                        <option value="OFFER">OFFER (Angebot)</option>
+                        <option value="RESERVED">RESERVED (Option)</option>
+                        <option value="FIX">FIX (Gebucht)</option>
+                        <option value="DECLINED">DECLINED (Abgesagt)</option>
+                        <option value="BILLABLE">BILLABLE (Abrechenbar)</option>
+                        <option value="PAYED">PAYED (Bezahlt)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Kontakt</label>
+                    <input type="text" id="edit-contact" placeholder="Kontaktperson">
+                </div>
+
+                <div class="form-group">
+                    <label>Ort / Location</label>
+                    <input type="text" id="edit-location" placeholder="Ort">
+                </div>
+
+                <div class="form-group">
+                    <label>Notizen</label>
+                    <textarea id="edit-notes" rows="4"></textarea>
+                </div>
+
+                <div class="form-group view-only">
+                    <label>Quellen / Quell-E-Mails</label>
+                    <div id="sources-links" class="detail-text"
+                        style="font-family: inherit; font-size: inherit; border: none; padding: 0;">
+                        <!-- Wird per JS befüllt -->
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <div id="view-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Schließen</button>
+            </div>
+            <div id="edit-actions" class="hidden">
+                <button class="btn btn-secondary" onclick="toggleEditMode(false)">Abbrechen</button>
+                <button class="btn btn-primary" onclick="saveChanges()">Speichern</button>
+            </div>
+        </div>
+    </div>
+</div>

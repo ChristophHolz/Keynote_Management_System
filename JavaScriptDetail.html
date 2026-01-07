@@ -1,0 +1,45 @@
+<script>
+    /**
+     * JavaScript for Standalone Detail Page
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+        const eventId = '<?= eventId ?>';
+
+        if (eventId && eventId !== '' && eventId !== 'null') {
+            openDetail(eventId);
+        } else {
+            const container = document.querySelector('.detail-page-container');
+            if (container) {
+                container.innerHTML = '<div style="padding: 2rem; text-align: center;"><h3>Kein Event ausgewählt</h3><button class="btn btn-secondary" onclick="goBack()">Zurück zum Board</button></div>';
+            }
+        }
+    });
+
+    function goBack() {
+        const url = '<?= ScriptApp.getService().getUrl() ?>';
+        window.top.location.href = url;
+    }
+
+    /* Override closeModal to navigate back instead of just hiding if on this page */
+    const originalCloseModal = window.closeModal;
+    window.closeModal = () => {
+        goBack();
+    };
+
+    /* Override navigateEvent to update the URL when switching events */
+    const originalNavigateEvent = window.navigateEvent;
+    window.navigateEvent = async (direction) => {
+        // Fallback to finding the next ID in currentInquiries
+        const currentId = document.getElementById('edit-id').value;
+        const index = currentInquiries.findIndex(i => i.id === currentId);
+        if (index === -1) return;
+
+        const nextIndex = index + direction;
+        if (nextIndex >= 0 && nextIndex < currentInquiries.length) {
+            const nextItem = currentInquiries[nextIndex];
+            // Update URL and reload/re-render
+            const newUrl = '<?= ScriptApp.getService().getUrl() ?>?page=detail&id=' + nextItem.id;
+            window.top.location.href = newUrl;
+        }
+    };
+</script>

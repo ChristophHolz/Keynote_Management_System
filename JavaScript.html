@@ -1,117 +1,453 @@
 <script>
-    // Mock Data for Local Fallback
-    const LOCAL_MOCK_DATA = [
-        {
-            id: '1',
-            customerName: 'TechCorp GmbH (Local)',
-            contactPerson: 'Julia Müller',
-            email: 'julia.mueller@techcorp.de',
-            eventDate: '2025-11-15',
-            location: 'Berlin',
-            status: 'Anfrage'
-        },
-        {
-            id: '2',
-            customerName: 'Innovation Summit (Local)',
-            contactPerson: 'Max Mustermann',
-            email: 'max@innovation-summit.com',
-            eventDate: '2026-03-20',
-            location: 'München',
-            status: 'In Bearbeitung'
-        }
-    ];
+    (function () {
+        'use strict';
+        // Mock Data for Local Fallback
+        const LOCAL_MOCK_DATA = [
+            {
+                id: '1',
+                customerName: 'TechCorp GmbH (Local)',
+                contactPerson: 'Julia Müller',
+                email: 'julia.mueller@techcorp.de',
+                eventDate: '2025-11-15',
+                location: 'Berlin',
+                status: 'LEAD'
+            },
+            {
+                id: '2',
+                customerName: 'Innovation Summit (Local)',
+                contactPerson: 'Max Mustermann',
+                email: 'max@innovation-summit.com',
+                eventDate: '2026-03-20',
+                location: 'München',
+                status: 'FIX'
+            }
+        ];
 
-    // Data Service Adapter
-    const dataService = {
-        getInquiries: async () => {
+        // Data Service Adapter
+        const dataService = {
+            getInquiries: async () => {
+                return new Promise((resolve, reject) => {
+                    if (typeof google === 'undefined') {
+                        console.warn('GAS environment not detected. Using local mock data.');
+                        setTimeout(() => resolve(LOCAL_MOCK_DATA), 500);
+                    } else {
+                        google.script.run
+                            .withSuccessHandler(resolve)
+                            .withFailureHandler(reject)
+                            .getInquiries();
+                    }
+                });
+            },
+
+            getInquiryById: async (id) => {
+                return new Promise((resolve, reject) => {
+                    if (typeof google === 'undefined') {
+                        const item = LOCAL_MOCK_DATA.find(i => i.id === id);
+                        setTimeout(() => resolve(item), 200);
+                    } else {
+                        google.script.run
+                            .withSuccessHandler(resolve)
+                            .withFailureHandler(reject)
+                            .getInquiryById(id);
+                    }
+                });
+            }
+        };
+
+        // Application Logic
+        window.currentInquiries = []; // Cache for navigation (Global access)
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadInquiries();
+            document.getElementById('refresh-btn')?.addEventListener('click', loadInquiries);
+        });
+
+        async function loadInquiries() {
+            const board = document.getElementById('kanban-board');
+            if (board) board.innerHTML = '<div style="padding: 2rem; color: var(--text-muted);">Lade Daten...</div>';
+
+            try {
+                const inquiries = await dataService.getInquiries();
+                window.currentInquiries = inquiries || [];
+                if (board) renderKanban(inquiries);
+
+                // If we are on the detail page, update nav buttons once data is loaded
+                const currentId = document.getElementById('edit-id')?.value;
+                if (currentId) updateNavButtonStates(currentId);
+            } catch (error) {
+                console.error('Error loading data:', error);
+                if (board) board.innerHTML = '<div style="padding: 2rem; color: #ff6b6b;">Fehler beim Laden der Daten.</div>';
+            }
+        }
+
+        /* --- NAVIGATION LOGIC --- */
+        window.navigateEvent = (direction) => {
+            const currentId = document.getElementById('edit-id').value;
+            const currentIndex = window.currentInquiries.findIndex(item => item.id === currentId);
+
+            if (currentIndex === -1) return;
+
+            const nextIndex = currentIndex + direction;
+            if (nextIndex >= 0 && nextIndex < window.currentInquiries.length) {
+                openDetail(window.currentInquiries[nextIndex].id);
+            }
+        };
+
+        window.updateNavButtonStates = (targetId) => {
+            const currentIndex = window.currentInquiries.findIndex(item => item.id === targetId);
+            const prevBtn = document.getElementById('prev-event-btn');
+            const nextBtn = document.getElementById('next-event-btn');
+
+            if (prevBtn) prevBtn.disabled = (currentIndex <= 0);
+            if (nextBtn) nextBtn.disabled = (currentIndex === -1 || currentIndex >= window.currentInquiries.length - 1);
+        }
+
+        function renderKanban(inquiries) {
+            const board = document.getElementById('kanban-board');
+            board.innerHTML = '';
+
+            // 0. Safety Check
+            if (!Array.isArray(inquiries)) {
+                console.warn('renderKanban: inquiries is not an array', inquiries);
+                inquiries = [];
+            }
+            const columns = [
+                { id: 'interest', title: 'Interesse', statuses: ['LEAD'] },
+                { id: 'lead', title: 'Anfrage', statuses: ['REQUEST', 'NEU'] },
+                { id: 'progress', title: 'In Bearbeitung', statuses: ['RESERVED', 'OPTION', 'WAITING', 'PENDING', 'OFFER'] },
+                { id: 'fix', title: 'Gebucht / Fix', statuses: ['FIX', 'BOOKED', 'WIN'] },
+                { id: 'billable', title: 'Abrechnung', statuses: ['BILLABLE'] },
+                { id: 'payed', title: 'Bezahlt', statuses: ['PAYED', 'PAID'] },
+                { id: 'archive', title: 'Absage / Archiv', statuses: ['DECLINED', 'REJECTED', 'LOST', 'CANCELED'] }
+            ];
+
+            // 2. Group Inquiries
+            const grouped = {};
+            columns.forEach(col => grouped[col.id] = []);
+
+            inquiries.forEach(item => {
+                const s = (item.status || '').toUpperCase();
+                let found = false;
+                for (const col of columns) {
+                    if (col.statuses.some(st => s.includes(st))) {
+                        grouped[col.id].push(item);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) grouped['lead'].push(item); // Default to Lead if unknown
+            });
+
+            // 3. Render Columns
+            columns.forEach(col => {
+                const items = grouped[col.id];
+
+                // Build Column HTML
+                const colDiv = document.createElement('div');
+                colDiv.className = 'kanban-col';
+
+                colDiv.innerHTML = `
+                <div class="kanban-header">
+                    <span>${col.title}</span>
+                    <span class="col-count">${items.length}</span>
+                </div>
+                <div class="kanban-body">
+                    ${items.map(item => renderCard(item, col.id)).join('')}
+                </div>
+            `;
+                board.appendChild(colDiv);
+            });
+        }
+
+        function renderCard(item, colId) {
+            // Status Stripe Color Class
+            let stripeClass = 'status-stripe-lead';
+            if (colId === 'progress') stripeClass = 'status-stripe-process';
+            if (colId === 'fix') stripeClass = 'status-stripe-fix';
+            if (colId === 'billable') stripeClass = 'status-stripe-billable';
+            if (colId === 'payed') stripeClass = 'status-stripe-payed';
+            if (colId === 'archive') stripeClass = 'status-stripe-declined';
+
+            const eventDateStr = item.eventDate
+                ? `📅 ${new Date(item.eventDate).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+                : '<span style="opacity:0.5; font-style:italic;">offen</span>';
+
+            return `
+            <div class="kanban-card ${stripeClass}" onclick="window.top.location.href='<?= ScriptApp.getService().getUrl() ?>?page=detail&id=${item.id}';">
+                <div class="card-title" title="${item.customerName.replace(/<[^>]*>?/gm, '')}">
+                    ${item.customerName}
+                </div>
+                <div class="card-subtitle">
+                    ${item.contactPerson || ''}
+                </div>
+                <div class="card-meta">
+                    <div>${eventDateStr}</div>
+                    <div>${item.location ? '📍 ' + item.location.split(',')[0] : ''}</div>
+                </div>
+            </div>
+        `;
+        }
+
+        /* --- EDITOR LOGIC --- */
+        function autoResizeTextarea(el) {
+            if (!el) return;
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+
+        // Attach resize listeners to all textareas
+        document.addEventListener('input', (e) => {
+            if (e.target.tagName === 'TEXTAREA') {
+                autoResizeTextarea(e.target);
+            }
+        });
+
+        // Add update function to Service
+        dataService.updateInquiry = async (id, updates) => {
             return new Promise((resolve, reject) => {
                 if (typeof google === 'undefined') {
-                    console.warn('GAS environment not detected. Using local mock data.');
-                    setTimeout(() => resolve(LOCAL_MOCK_DATA), 500);
+                    console.log('Mock Update:', id, updates);
+                    // Mock local update
+                    const idx = LOCAL_MOCK_DATA.findIndex(i => i.id === id);
+                    if (idx !== -1) {
+                        LOCAL_MOCK_DATA[idx] = { ...LOCAL_MOCK_DATA[idx], ...updates };
+                    }
+                    setTimeout(() => resolve({ success: true }), 500);
                 } else {
                     google.script.run
                         .withSuccessHandler(resolve)
                         .withFailureHandler(reject)
-                        .getInquiries();
+                        .updateInquiry(id, updates);
                 }
             });
-        },
+        };
 
-        getInquiryById: async (id) => {
-            return new Promise((resolve, reject) => {
-                if (typeof google === 'undefined') {
-                    const item = LOCAL_MOCK_DATA.find(i => i.id === id);
-                    setTimeout(() => resolve(item), 200);
+        window.toggleEditMode = (isEdit) => {
+            const form = document.getElementById('edit-form');
+            const editBtn = document.getElementById('edit-mode-btn');
+            const viewActions = document.getElementById('view-actions');
+            const editActions = document.getElementById('edit-actions');
+
+            if (isEdit) {
+                form.classList.remove('view-mode');
+                editBtn.classList.add('hidden');
+                viewActions.classList.add('hidden');
+                editActions.classList.remove('hidden');
+            } else {
+                form.classList.add('view-mode');
+                editBtn.classList.remove('hidden');
+                viewActions.classList.remove('hidden');
+                editActions.classList.add('hidden');
+            }
+        };
+
+        window.openDetail = async (id) => {
+            try {
+                toggleEditMode(false); // Default to View Mode
+                const item = await dataService.getInquiryById(id);
+                if (!item) return alert('Datensatz nicht gefunden');
+
+                // Helper to handle TBD fallback and Date formatting
+                const tbd = (val, isDate = false) => {
+                    if (val === undefined || val === null || String(val).trim() === '') return 'TBD';
+                    if (isDate) {
+                        // Remove seconds and timezone: "19:44:43 GMT+0100..." -> "19:44"
+                        return String(val).replace(/(\d{2}:\d{2}):\d{2}.*$/, '$1');
+                    }
+                    return val;
+                };
+
+                // Populate Form
+                document.getElementById('edit-id').value = item.id;
+                document.getElementById('edit-date').value = tbd(item.talkDate, true);
+                document.getElementById('edit-event').value = tbd(item.event);
+                document.getElementById('edit-theme').value = tbd(item.theme);
+                document.getElementById('edit-about-talk').value = tbd(item.aboutTalk);
+                document.getElementById('edit-about-speaker').value = tbd(item.aboutSpeaker);
+                document.getElementById('edit-audience-comp').value = tbd(item.audienceComposition);
+                document.getElementById('edit-audience-size').value = tbd(item.audienceSize);
+                document.getElementById('edit-language').value = item.language || 'TBD';
+                document.getElementById('edit-fee').value = tbd(item.fee);
+                document.getElementById('edit-payment').value = tbd(item.paymentDetails);
+                document.getElementById('edit-expectations').value = tbd(item.expectations);
+                document.getElementById('edit-ai-analysis').value = tbd(item.aiAnalysis);
+                document.getElementById('edit-moderator').value = tbd(item.forModerator);
+                document.getElementById('edit-tech').value = tbd(item.techRequirement);
+                document.getElementById('edit-handout').value = tbd(item.handout);
+
+                // Hotel Display & Link
+                document.getElementById('edit-hotel').value = tbd(item.hotelDisplay);
+                const hotelLink = document.getElementById('edit-hotel-link');
+                if (item.hotelMapsLink) {
+                    hotelLink.href = item.hotelMapsLink;
+                    hotelLink.style.display = 'inline-block';
                 } else {
-                    google.script.run
-                        .withSuccessHandler(resolve)
-                        .withFailureHandler(reject)
-                        .getInquiryById(id);
+                    hotelLink.style.display = 'none';
                 }
-            });
-        }
-    };
 
-    // Application Logic
-    document.addEventListener('DOMContentLoaded', () => {
-        loadInquiries();
-        document.getElementById('refresh-btn')?.addEventListener('click', loadInquiries);
-    });
+                document.getElementById('edit-travel').value = tbd(item.travelPlan);
+                document.getElementById('edit-entities').value = tbd(item.eventEntities);
 
-    async function loadInquiries() {
-        const listContainer = document.getElementById('inquiries-list');
-        listContainer.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 3rem;">Lade Daten...</td></tr>';
+                // Render Sources (Links)
+                const sourcesContainer = document.getElementById('sources-links');
+                if (sourcesContainer) {
+                    sourcesContainer.innerHTML = '';
+                    const links = (item.sources || '').split(',').map(l => l.trim()).filter(l => l);
+                    if (links.length > 0) {
+                        links.forEach((link, idx) => {
+                            const a = document.createElement('a');
+                            a.href = link;
+                            a.target = '_blank';
+                            a.className = 'detail-link';
+                            a.style.display = 'block';
+                            a.style.marginBottom = '4px';
+                            a.innerHTML = `<i class="fa-solid fa-envelope"></i> E-Mail Quelle ${links.length > 1 ? idx + 1 : ''}`;
+                            sourcesContainer.appendChild(a);
+                        });
+                    } else {
+                        sourcesContainer.innerHTML = '<span class="tbd">Keine Quellen verknüpft</span>';
+                    }
+                }
 
-        try {
-            const inquiries = await dataService.getInquiries();
-            renderInquiries(inquiries);
-        } catch (error) {
-            console.error('Error loading data:', error);
-            listContainer.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #ff6b6b; padding: 3rem;">Fehler beim Laden der Daten.</td></tr>';
-        }
-    }
+                // Render Contact Links for Entities
+                const contactLinksContainer = document.getElementById('edit-contact-links');
+                contactLinksContainer.innerHTML = '';
 
-    function renderInquiries(inquiries) {
-        const listContainer = document.getElementById('inquiries-list');
+                try {
+                    const entitiesRaw = item.eventEntities;
+                    // Helper to parse if string
+                    const tryPF = (v) => {
+                        if (!v || v === 'TBD') return null;
+                        if (typeof v === 'object') return v;
+                        try { return JSON.parse(v); } catch (e) { return null; }
+                    };
 
-        if (!inquiries || inquiries.length === 0) {
-            listContainer.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 3rem;">Keine Anfragen gefunden.</td></tr>';
-            return;
-        }
+                    const entities = tryPF(entitiesRaw);
+                    if (entities) {
+                        const entityList = Array.isArray(entities) ? entities : [entities];
+                        entityList.forEach(entity => {
+                            if (entity.Contacts && Array.isArray(entity.Contacts)) {
+                                entity.Contacts.forEach(contact => {
+                                    const card = document.createElement('div');
+                                    card.className = 'contact-card';
 
-        listContainer.innerHTML = inquiries.map(item => `
-        <tr>
-            <td>
-                <div class="customer-cell">${item.customerName}</div>
-                <span class="sub-text">${item.contactPerson}</span>
-            </td>
-            <td>
-                <div>${new Date(item.eventDate).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
-                <span class="sub-text">${item.location}</span>
-            </td>
-            <td>
-                ${getStatusBadge(item.status)}
-            </td>
-            <td>
-                <button class="action-btn" onclick="openDetail('${item.id}')" title="Details öffnen">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                </button>
-            </td>
-        </tr>
-    `).join('');
-    }
+                                    let html = `<div class="contact-name">${contact.Name || 'Kontakt'}</div>`;
+                                    html += `<div class="contact-actions">`;
+                                    if (contact.Email) {
+                                        html += `<a href="mailto:${contact.Email}" class="contact-link" title="${contact.Email}">✉️ Email</a>`;
+                                    }
+                                    if (contact.Phone) {
+                                        html += `<a href="tel:${contact.Phone}" class="contact-link" title="${contact.Phone}">📞 Tel</a>`;
+                                    }
+                                    html += `</div>`;
 
-    function getStatusBadge(status) {
-        let className = 'badge-new';
-        if (status && status.includes('Bearbeitung')) className = 'badge-pending';
-        if (status && status.includes('Angebot')) className = 'badge-sent';
+                                    card.innerHTML = html;
+                                    contactLinksContainer.appendChild(card);
+                                });
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error rendering contact links:', e);
+                }
 
-        return `<span class="badge ${className}">${status || 'Neu'}</span>`;
-    }
+                document.getElementById('edit-referer').value = tbd(item.referer);
+                document.getElementById('edit-kampagne').value = tbd(item.kampagne);
+                document.getElementById('edit-todo').value = tbd(item.toDoList);
+                document.getElementById('edit-final-title').value = tbd(item.finalTitle);
+                document.getElementById('edit-title-suggestions').value = tbd(item.titleSuggestions);
 
-    // Global function
-    window.openDetail = (id) => {
-        console.log('Open detail for ID:', id);
-        alert('Detail-Ansicht für ID: ' + id + ' folgt in Kürze.');
-    };
+                // Meta fields
+                document.getElementById('edit-status').value = item.status || 'LEAD';
+                document.getElementById('edit-duration').value = item.duration || '';
+                document.getElementById('edit-contact').value = item.contactPerson || '';
+                document.getElementById('edit-location').value = item.location || '';
+                document.getElementById('edit-notes').value = item.notes || '';
+
+                // Update Navigation Button States
+                updateNavButtonStates(id);
+
+                // Show Modal
+                document.getElementById('editor-modal').classList.remove('hidden');
+
+                // Trigger auto-resize after population
+                requestAnimationFrame(() => {
+                    const textareas = document.querySelectorAll('#edit-form textarea');
+                    textareas.forEach(autoResizeTextarea);
+                });
+            } catch (e) {
+                console.error(e);
+                alert('Fehler beim Laden der Details.');
+            }
+        };
+
+        window.closeModal = () => {
+            document.getElementById('editor-modal').classList.add('hidden');
+        };
+
+        window.saveChanges = async () => {
+            const id = document.getElementById('edit-id').value;
+
+            // Helper to reverse TBD
+            const untbd = (id) => {
+                const val = document.getElementById(id).value;
+                return (val === 'TBD') ? '' : val;
+            };
+
+            const updates = {
+                Talk_Date: untbd('edit-date'),
+                Event: untbd('edit-event'),
+                Final_Title: untbd('edit-final-title'),
+                Title_Suggestions: untbd('edit-title-suggestions'),
+                Theme: untbd('edit-theme'),
+                About_Talk: untbd('edit-about-talk'),
+                About_Speaker: untbd('edit-about-speaker'),
+                Audience_Composition: untbd('edit-audience-comp'),
+                Audience_Size: untbd('edit-audience-size'),
+                Language: untbd('edit-language'),
+                Netto_Fee: untbd('edit-fee'),
+                Payment_Details: untbd('edit-payment'),
+                Expections_of_Speaker: untbd('edit-expectations'),
+                AI_Analysis: untbd('edit-ai-analysis'),
+                For_Moderator: untbd('edit-moderator'),
+                Tech_Requirement: untbd('edit-tech'),
+                Handout: untbd('edit-handout'),
+                Hotel: untbd('edit-hotel'),
+                Travel_Plan: untbd('edit-travel'),
+                Referer: untbd('edit-referer'),
+                Kampagne: untbd('edit-kampagne'),
+                Event_Entities: untbd('edit-entities'),
+                ToDoList: untbd('edit-todo'),
+                Status: document.getElementById('edit-status').value,
+                Duration: document.getElementById('edit-duration').value,
+                Notes: document.getElementById('edit-notes').value,
+                Location: document.getElementById('edit-location').value
+            };
+
+            const btn = document.querySelector('#edit-actions .btn-primary');
+            const originalText = btn.innerText;
+            btn.innerText = 'Speichern...';
+            btn.disabled = true;
+
+            try {
+                await dataService.updateInquiry(id, updates);
+                toggleEditMode(false); // Back to View Mode
+                loadInquiries(); // Refresh Board
+                // Note: We might want to keep the modal open to show the new "View" state
+                // but standard behavior here was closeModal. Let's stick to closing for now
+                // to avoid confusion with stale data if the update takes time.
+                closeModal();
+            } catch (e) {
+                alert('Fehler beim Speichern: ' + e.message);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        };
+
+        // Close on outside click
+        document.getElementById('editor-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'editor-modal') closeModal();
+        });
+    })();
 </script>

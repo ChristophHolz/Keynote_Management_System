@@ -1,0 +1,21 @@
+# Ignore all files
+**/**
+
+# Except for these
+!Code.js
+!appsscript.json
+!schema.js
+!extract_details.js
+!filter_emails.js
+!*.html
+!secrets.js
+
+# Explicitly ignore common non-project files
+.git/**
+.DS_Store
+node_modules/**
+README.md
+specification.md
+task.md
+implementation_plan.md
+walkthrough.md

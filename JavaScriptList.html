@@ -1,0 +1,104 @@
+<script>
+    /**
+     * JavaScript for Chronological Event List View
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+        loadEvents();
+    });
+
+    async function loadEvents() {
+        const loading = document.getElementById('loading');
+        const table = document.getElementById('event-table');
+        const body = document.getElementById('event-list-body');
+
+        try {
+            const inquiries = await new Promise((resolve, reject) => {
+                google.script.run
+                    .withSuccessHandler(resolve)
+                    .withFailureHandler(reject)
+                    .getInquiries();
+            });
+
+            if (!inquiries || inquiries.length === 0) {
+                loading.innerText = 'Keine Events gefunden.';
+                return;
+            }
+
+            // Sort chronologically (oldest first or newest first?)
+            // Usually chronological list is oldest to newest for future events, 
+            // but for a manager, newest (latest) first might be better. 
+            // We'll go with Newest First for now.
+            const sorted = inquiries.sort((a, b) => {
+                const dateA = new Date(a.talkDate || 0);
+                const dateB = new Date(b.talkDate || 0);
+                return dateB - dateA;
+            });
+
+            body.innerHTML = '';
+            sorted.forEach(ev => {
+                const row = document.createElement('tr');
+                row.onclick = () => window.top.location.href = '<?= ScriptApp.getService().getUrl() ?>?page=detail&id=' + ev.id;
+
+                // Date formatting (clean)
+                const dateStr = ev.talkDate ?
+                    String(ev.talkDate).replace(/(\d{2}:\d{2}):\d{2}.*$/, '$1') :
+                    'TBD';
+
+                // Entities parsing
+                let entitiesHtml = '';
+                try {
+                    const ent = typeof ev.eventEntities === 'string' ?
+                        (ev.eventEntities.startsWith('{') || ev.eventEntities.startsWith('[') ? JSON.parse(ev.eventEntities) : ev.eventEntities) :
+                        ev.eventEntities;
+
+                    if (Array.isArray(ent)) {
+                        entitiesHtml = ent.map(e => `<span class="entity-tag">${e.Organisation || e}</span>`).join('');
+                    } else if (ent && typeof ent === 'object') {
+                        entitiesHtml = `<span class="entity-tag">${ent.Organisation || ent.Name || 'Kontakt'}</span>`;
+                    } else if (ent && ent !== 'TBD') {
+                        entitiesHtml = `<span class="entity-tag">${ent}</span>`;
+                    } else {
+                        entitiesHtml = '<span class="text-muted">TBD</span>';
+                    }
+                } catch (e) {
+                    entitiesHtml = `<span class="entity-tag">${ev.eventEntities}</span>`;
+                }
+
+                // Status formatting
+                const status = ev.status || 'LEAD';
+                const statusMap = {
+                    'LEAD': { label: 'Interesse', color: '#95a5a6' },
+                    'REQUEST': { label: 'Anfrage', color: '#3498db' },
+                    'OFFER': { label: 'Angebot', color: '#9b59b6' },
+                    'RESERVED': { label: 'Option', color: '#f1c40f' },
+                    'FIX': { label: 'Gebucht', color: '#2ecc71' },
+                    'DECLINED': { label: 'Abgesagt', color: '#e74c3c' },
+                    'BILLABLE': { label: 'Abrechenbar', color: '#1abc9c' },
+                    'PAYED': { label: 'Bezahlt', color: '#7f8c8d' }
+                };
+                const sInfo = statusMap[status] || { label: status, color: '#95a5a6' };
+                const statusHtml = `<span style="background: ${sInfo.color}15; color: ${sInfo.color}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">${sInfo.label}</span>`;
+
+                row.innerHTML = `
+                    <td><strong>${dateStr}</strong></td>
+                    <td>${statusHtml}</td>
+                    <td>
+                        <div style="font-weight: 600;">${ev.event}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">${ev.finalTitle || ev.theme || ''}</div>
+                    </td>
+                    <td>${ev.location || 'TBD'}</td>
+                    <td><span class="fee-pill">${ev.fee ? ev.fee + ' €' : 'TBD'}</span></td>
+                    <td>${entitiesHtml}</td>
+                `;
+                body.appendChild(row);
+            });
+
+            loading.style.display = 'none';
+            table.style.display = 'table';
+
+        } catch (e) {
+            console.error(e);
+            loading.innerText = 'Fehler beim Laden der Daten.';
+        }
+    }
+</script>
