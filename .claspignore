@@ -9,6 +9,7 @@
 !filter_emails.js
 !*.html
 !secrets.js
+!triggers.js
 
 # Explicitly ignore common non-project files
 .git/**
