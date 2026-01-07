@@ -75,8 +75,9 @@
                 yearFilter.appendChild(opt);
             });
 
-            // Initial render
-            renderEvents(allEvents);
+            // Initial render - hide DELETE status by default
+            const visibleEvents = allEvents.filter(ev => ev.status !== 'DELETE');
+            renderEvents(visibleEvents);
 
             loading.style.display = 'none';
             table.style.display = 'table';
@@ -232,6 +233,11 @@
 
     function applyFilters() {
         let filtered = allEvents;
+
+        // If no status filter is set, hide DELETE events by default
+        if (!currentFilters.status) {
+            filtered = filtered.filter(ev => ev.status !== 'DELETE');
+        }
 
         // Filter by year
         if (currentFilters.year) {
