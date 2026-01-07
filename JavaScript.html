@@ -106,43 +106,54 @@
             const board = document.getElementById('kanban-board');
             board.innerHTML = '';
 
-            // 0. Safety Check
+            // Safety Check
             if (!Array.isArray(inquiries)) {
                 console.warn('renderKanban: inquiries is not an array', inquiries);
                 inquiries = [];
             }
+
+            // Define 4 active workflow columns
             const columns = [
-                { id: 'interest', title: 'Interesse', statuses: ['LEAD'] },
-                { id: 'lead', title: 'Anfrage', statuses: ['REQUEST', 'NEU'] },
-                { id: 'progress', title: 'In Bearbeitung', statuses: ['RESERVED', 'OPTION', 'WAITING', 'PENDING', 'OFFER'] },
-                { id: 'fix', title: 'Gebucht / Fix', statuses: ['FIX', 'BOOKED', 'WIN'] },
-                { id: 'billable', title: 'Abrechnung', statuses: ['BILLABLE'] },
-                { id: 'payed', title: 'Bezahlt', statuses: ['PAYED', 'PAID'] },
-                { id: 'archive', title: 'Absage / Archiv', statuses: ['DECLINED', 'REJECTED', 'LOST', 'CANCELED'] }
+                { id: 'REQUEST', title: 'Anfrage' },
+                { id: 'OFFER', title: 'Angebot' },
+                { id: 'FIX', title: 'Gebucht' },
+                { id: 'BILLABLE', title: 'Abrechnung' }
             ];
 
-            // 2. Group Inquiries
+            // Helper: Map status to column (with special rules)
+            const getKanbanColumn = (item) => {
+                const status = item.status;
+                const eventDate = new Date(item.talkDate || item.eventDate);
+                const isFuture = eventDate > new Date();
+
+                // Status mapping rules
+                if (status === 'RESERVED') return 'OFFER';
+                if (status === 'PROBONO' && isFuture) return 'FIX';
+
+                // Direct mapping for active workflow statuses
+                if (['REQUEST', 'OFFER', 'FIX', 'BILLABLE'].includes(status)) {
+                    return status;
+                }
+
+                // Hide all other statuses (LEAD, DECLINED, PAYED, SPECIAL, DELETE, DUPLICATE)
+                return null;
+            };
+
+            // Group inquiries by column
             const grouped = {};
             columns.forEach(col => grouped[col.id] = []);
 
             inquiries.forEach(item => {
-                const s = (item.status || '').toUpperCase();
-                let found = false;
-                for (const col of columns) {
-                    if (col.statuses.some(st => s.includes(st))) {
-                        grouped[col.id].push(item);
-                        found = true;
-                        break;
-                    }
+                const column = getKanbanColumn(item);
+                if (column && grouped[column]) {
+                    grouped[column].push(item);
                 }
-                if (!found) grouped['lead'].push(item); // Default to Lead if unknown
             });
 
-            // 3. Render Columns
+            // Render columns
             columns.forEach(col => {
                 const items = grouped[col.id];
 
-                // Build Column HTML
                 const colDiv = document.createElement('div');
                 colDiv.className = 'kanban-col';
 
@@ -160,33 +171,83 @@
         }
 
         function renderCard(item, colId) {
-            // Status Stripe Color Class
-            let stripeClass = 'status-stripe-lead';
-            if (colId === 'progress') stripeClass = 'status-stripe-process';
-            if (colId === 'fix') stripeClass = 'status-stripe-fix';
-            if (colId === 'billable') stripeClass = 'status-stripe-billable';
-            if (colId === 'payed') stripeClass = 'status-stripe-payed';
-            if (colId === 'archive') stripeClass = 'status-stripe-declined';
+            // Format date
+            const eventDateStr = item.talkDate || item.eventDate
+                ? new Date(item.talkDate || item.eventDate).toLocaleDateString('de-DE', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                })
+                : 'TBD';
 
-            const eventDateStr = item.eventDate
-                ? `📅 ${new Date(item.eventDate).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
-                : '<span style="opacity:0.5; font-style:italic;">offen</span>';
+            // Status dropdown options
+            const statusOptions = [
+                { value: 'LEAD', label: 'LEAD' },
+                { value: 'REQUEST', label: 'REQUEST' },
+                { value: 'OFFER', label: 'OFFER' },
+                { value: 'RESERVED', label: 'RESERVED' },
+                { value: 'FIX', label: 'FIX' },
+                { value: 'DECLINED', label: 'DECLINED' },
+                { value: 'BILLABLE', label: 'BILLABLE' },
+                { value: 'PAYED', label: 'PAYED' },
+                { value: 'SPECIAL', label: 'SPECIAL' },
+                { value: 'PROBONO', label: 'PROBONO' },
+                { value: 'DELETE', label: 'DELETE' },
+                { value: 'DUPLICATE', label: 'DUPLICATE' }
+            ];
+
+            const statusOptionsHtml = statusOptions.map(opt =>
+                `<option value="${opt.value}" ${opt.value === item.status ? 'selected' : ''}>${opt.label}</option>`
+            ).join('');
+
+            // Generate unique ID for this card's select
+            const selectId = `status-select-${item.id}`;
 
             return `
-            <div class="kanban-card ${stripeClass}" onclick="window.top.location.href='<?= ScriptApp.getService().getUrl() ?>?page=detail&id=${item.id}';">
-                <div class="card-title" title="${item.customerName.replace(/<[^>]*>?/gm, '')}">
-                    ${item.customerName}
+            <div class="kanban-card" style="cursor: pointer;">
+                <div onclick="window.top.location.href='<?= ScriptApp.getService().getUrl() ?>?page=detail&id=${item.id}';" 
+                     style="flex: 1;">
+                    <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                        📅 ${eventDateStr}
+                    </div>
+                    <div class="card-title" style="margin-bottom: 0.25rem;">
+                        ${item.event || 'TBD'}
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">
+                        ${item.location ? '📍 ' + item.location : ''}
+                    </div>
                 </div>
-                <div class="card-subtitle">
-                    ${item.contactPerson || ''}
-                </div>
-                <div class="card-meta">
-                    <div>${eventDateStr}</div>
-                    <div>${item.location ? '📍 ' + item.location.split(',')[0] : ''}</div>
+                <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
+                    <select id="${selectId}" class="kanban-status-select" 
+                            onchange="updateCardStatus('${item.id}', this.value, '${selectId}')" 
+                            onclick="event.stopPropagation()">
+                        ${statusOptionsHtml}
+                    </select>
                 </div>
             </div>
         `;
         }
+
+        // Update status from Kanban card
+        window.updateCardStatus = async (itemId, newStatus, selectId) => {
+            try {
+                await new Promise((resolve, reject) => {
+                    google.script.run
+                        .withSuccessHandler(resolve)
+                        .withFailureHandler(reject)
+                        .updateInquiry(itemId, { Status: newStatus });
+                });
+                console.log(`Status updated to ${newStatus} for ${itemId}`);
+                // Reload to reflect changes
+                loadInquiries();
+            } catch (err) {
+                alert('Fehler beim Aktualisieren des Status.');
+                console.error(err);
+                // Revert select
+                const select = document.getElementById(selectId);
+                if (select) select.value = select.dataset.originalValue || 'LEAD';
+            }
+        };
 
         /* --- EDITOR LOGIC --- */
         function autoResizeTextarea(el) {
