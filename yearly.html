@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <title>Keynote Manager - Jahresübersicht</title>
+    <?!= include('Stylesheet'); ?>
+    <style>
+        .yearly-container {
+            width: 100%;
+            padding: 1rem 2rem;
+            overflow-x: auto;
+        }
+
+        .yearly-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            margin-top: 1rem;
+        }
+
+        .yearly-table th {
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            background: var(--bg-color);
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .yearly-table th:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 20;
+            background: var(--bg-color);
+        }
+
+        .yearly-table td {
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            vertical-align: top;
+            min-width: 200px;
+        }
+
+        .yearly-table td:first-child {
+            font-weight: 600;
+            background: var(--bg-color);
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            white-space: nowrap;
+        }
+
+        .event-item {
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            background: var(--surface-bg-alt);
+            border-left: 3px solid var(--primary);
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .event-item:hover {
+            background: var(--bg-color);
+            transform: translateX(2px);
+        }
+
+        .event-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .event-title {
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 0.25rem;
+        }
+
+        .event-client {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .event-location {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .status-FIX {
+            border-left-color: #2ecc71;
+        }
+
+        .status-BILLABLE {
+            border-left-color: #1abc9c;
+        }
+
+        .status-DECLINED {
+            border-left-color: #e74c3c;
+        }
+
+        .status-PAYED {
+            border-left-color: #7f8c8d;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <h1 class="brand">📊 Jahresübersicht</h1>
+            <div style="display: flex; gap: 1.5rem; align-items: center;">
+                <a href="#" class="nav-link"
+                    onclick="window.top.location.href='<?= ScriptApp.getService().getUrl() ?>'; return false;">Kanban</a>
+                <a href="#" class="nav-link"
+                    onclick="window.top.location.href='<?= ScriptApp.getService().getUrl() ?>?page=list'; return false;">Liste</a>
+                <a href="#" class="nav-link active"
+                    onclick="window.top.location.href='<?= ScriptApp.getService().getUrl() ?>?page=yearly'; return false;">Jahresübersicht</a>
+                <a href="#" class="nav-link"
+                    onclick="window.top.location.href='<?= ScriptApp.getService().getUrl() ?>?page=merge'; return false;">Duplikate</a>
+            </div>
+        </header>
+
+        <main class="yearly-container">
+            <div id="loading" class="loading-state">Lade Jahresübersicht...</div>
+            <table class="yearly-table" id="yearly-table" style="display: none;">
+                <thead id="yearly-header">
+                    <!-- Populated by JS -->
+                </thead>
+                <tbody id="yearly-body">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </main>
+    </div>
+
+    <?!= include('JavaScript'); ?>
+    <?!= include('JavaScriptYearly'); ?>
+</body>
+
+</html>

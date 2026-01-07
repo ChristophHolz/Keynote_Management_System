@@ -22,6 +22,13 @@ function doGet(e) {
             .addMetaTag('viewport', 'width=device-width, initial-scale=1');
     }
 
+    if (page === 'yearly') {
+        return HtmlService.createTemplateFromFile('yearly')
+            .evaluate()
+            .setTitle('Keynote Manager - Jahresübersicht')
+            .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    }
+
     return HtmlService.createTemplateFromFile('index')
         .evaluate()
         .setTitle('Keynote Manager Dashboard')

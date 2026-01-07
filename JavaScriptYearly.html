@@ -1,0 +1,127 @@
+<script>
+    /**
+     * JavaScript for Yearly Overview Page
+     */
+    document.addEventListener('DOMContentLoaded', () => {
+        loadYearlyOverview();
+    });
+
+    async function loadYearlyOverview() {
+        const loading = document.getElementById('loading');
+        const table = document.getElementById('yearly-table');
+        const header = document.getElementById('yearly-header');
+        const body = document.getElementById('yearly-body');
+
+        try {
+            const inquiries = await new Promise((resolve, reject) => {
+                google.script.run
+                    .withSuccessHandler(resolve)
+                    .withFailureHandler(reject)
+                    .getInquiries();
+            });
+
+            if (!inquiries || inquiries.length === 0) {
+                loading.innerText = 'Keine Events gefunden.';
+                return;
+            }
+
+            // Filter by relevant statuses
+            const relevantStatuses = ['FIX', 'BILLABLE', 'DECLINED', 'PAYED'];
+            const filtered = inquiries.filter(ev => relevantStatuses.includes(ev.status));
+
+            if (filtered.length === 0) {
+                loading.innerText = 'Keine Events mit relevanten Status gefunden.';
+                return;
+            }
+
+            // Extract years and organize data
+            const dataByYear = {};
+            const years = new Set();
+
+            filtered.forEach(ev => {
+                const date = new Date(ev.talkDate || ev.eventDate);
+                if (!isNaN(date.getTime())) {
+                    const year = date.getFullYear();
+                    const month = date.getMonth(); // 0-11
+
+                    years.add(year);
+
+                    if (!dataByYear[year]) {
+                        dataByYear[year] = {};
+                    }
+                    if (!dataByYear[year][month]) {
+                        dataByYear[year][month] = [];
+                    }
+                    dataByYear[year][month].push(ev);
+                }
+            });
+
+            const sortedYears = Array.from(years).sort((a, b) => a - b);
+
+            // Month names in German
+            const monthNames = [
+                'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+                'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+            ];
+
+            // Build header
+            let headerHtml = '<tr><th>Monat</th>';
+            sortedYears.forEach(year => {
+                headerHtml += `<th>${year}</th>`;
+            });
+            headerHtml += '</tr>';
+            header.innerHTML = headerHtml;
+
+            // Build body (12 months)
+            let bodyHtml = '';
+            for (let month = 0; month < 12; month++) {
+                bodyHtml += `<tr><td>${monthNames[month]}</td>`;
+
+                sortedYears.forEach(year => {
+                    const events = (dataByYear[year] && dataByYear[year][month]) || [];
+                    let cellHtml = '';
+
+                    events.forEach(ev => {
+                        // Extract client from eventEntities
+                        let client = '';
+                        try {
+                            const entities = typeof ev.eventEntities === 'string'
+                                ? JSON.parse(ev.eventEntities)
+                                : ev.eventEntities;
+
+                            if (entities) {
+                                if (Array.isArray(entities) && entities.length > 0) {
+                                    client = entities[0].Organisation || '';
+                                } else if (entities.Organisation) {
+                                    client = entities.Organisation;
+                                }
+                            }
+                        } catch (e) {
+                            client = ev.eventEntities || '';
+                        }
+
+                        cellHtml += `
+                            <div class="event-item status-${ev.status}" 
+                                 onclick="window.top.location.href='<?= ScriptApp.getService().getUrl() ?>?page=detail&id=${ev.id}';">
+                                <div class="event-title">${ev.event || 'TBD'}</div>
+                                <div class="event-client">🏢 ${client || 'TBD'}</div>
+                                <div class="event-location">📍 ${ev.location || 'TBD'}</div>
+                            </div>
+                        `;
+                    });
+
+                    bodyHtml += `<td>${cellHtml}</td>`;
+                });
+
+                bodyHtml += '</tr>';
+            }
+            body.innerHTML = bodyHtml;
+
+            loading.style.display = 'none';
+            table.style.display = 'table';
+        } catch (error) {
+            console.error(error);
+            loading.innerText = 'Fehler beim Laden der Jahresübersicht.';
+        }
+    }
+</script>
