@@ -74,14 +74,71 @@
                     'FIX': { label: 'Gebucht', color: '#2ecc71' },
                     'DECLINED': { label: 'Abgesagt', color: '#e74c3c' },
                     'BILLABLE': { label: 'Abrechenbar', color: '#1abc9c' },
-                    'PAYED': { label: 'Bezahlt', color: '#7f8c8d' }
+                    'PAYED': { label: 'Bezahlt', color: '#7f8c8d' },
+                    'SONDER': { label: 'Sonder', color: '#e67e22' }
                 };
-                const sInfo = statusMap[status] || { label: status, color: '#95a5a6' };
-                const statusHtml = `<span style="background: ${sInfo.color}15; color: ${sInfo.color}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">${sInfo.label}</span>`;
+
+                // Create Status Select instead of static badge
+                const select = document.createElement('select');
+                select.className = 'status-select';
+                select.style.cssText = `
+                    background: transparent;
+                    color: inherit;
+                    border: 1px solid currentColor;
+                    padding: 0.1rem 0.3rem; 
+                    border-radius: 4px; 
+                    font-size: 0.75rem; 
+                    font-weight: 600; 
+                    text-transform: uppercase;
+                    cursor: pointer;
+                    outline: none;
+                `;
+
+                Object.keys(statusMap).forEach(key => {
+                    const opt = document.createElement('option');
+                    opt.value = key;
+                    opt.text = statusMap[key].label;
+                    opt.selected = (key === status);
+                    select.appendChild(opt);
+                });
+
+                // Update styling based on initial selection
+                const applyStatusStyle = (val) => {
+                    const info = statusMap[val] || { label: val, color: '#95a5a6' };
+                    select.style.color = info.color;
+                    select.style.borderColor = info.color;
+                    select.style.background = `${info.color}10`;
+                };
+                applyStatusStyle(status);
+
+                select.onclick = (e) => e.stopPropagation();
+                select.onchange = async (e) => {
+                    e.stopPropagation();
+                    const newStatus = e.target.value;
+                    applyStatusStyle(newStatus);
+
+                    try {
+                        await new Promise((resolve, reject) => {
+                            google.script.run
+                                .withSuccessHandler(resolve)
+                                .withFailureHandler(reject)
+                                .updateInquiry(ev.id, { Status: newStatus });
+                        });
+                        console.log(`Status updated to ${newStatus} for ${ev.id}`);
+                    } catch (err) {
+                        alert('Fehler beim Aktualisieren des Status.');
+                        console.error(err);
+                    }
+                };
+
+                const statusTd = document.createElement('td');
+                statusTd.appendChild(select);
 
                 row.innerHTML = `
                     <td><strong>${dateStr}</strong></td>
-                    <td>${statusHtml}</td>
+                `;
+                row.appendChild(statusTd);
+                row.innerHTML += `
                     <td>
                         <div style="font-weight: 600;">${ev.event}</div>
                         <div style="font-size: 0.85rem; color: var(--text-muted);">${ev.finalTitle || ev.theme || ''}</div>
