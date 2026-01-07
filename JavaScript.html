@@ -389,7 +389,6 @@
                 document.getElementById('edit-title-suggestions').value = tbd(item.titleSuggestions);
 
                 // Meta fields
-                document.getElementById('edit-status').value = item.status || 'LEAD';
                 document.getElementById('edit-duration').value = item.duration || '';
                 document.getElementById('edit-contact').value = item.contactPerson || '';
                 document.getElementById('edit-location').value = item.location || '';
@@ -449,7 +448,7 @@
                 Kampagne: untbd('edit-kampagne'),
                 Event_Entities: untbd('edit-entities'),
                 ToDoList: untbd('edit-todo'),
-                Status: document.getElementById('edit-status').value,
+                Status: document.getElementById('edit-status-top').value,
                 Duration: document.getElementById('edit-duration').value,
                 Notes: document.getElementById('edit-notes').value,
                 Location: document.getElementById('edit-location').value
