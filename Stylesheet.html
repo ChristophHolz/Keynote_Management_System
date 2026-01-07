@@ -916,6 +916,16 @@
         transition: var(--transition);
         outline: none;
         box-shadow: var(--shadow-sm);
+        /* Allow interaction even in .view-mode */
+        pointer-events: auto !important;
+    }
+
+    /* Override view-mode resets for this specific element */
+    .view-mode .status-select-top {
+        border: 2px solid var(--border-color) !important;
+        background: var(--surface-bg) !important;
+        padding: 0.5rem 1.25rem !important;
+        box-shadow: var(--shadow-sm) !important;
     }
 
     .status-select-top:hover {
