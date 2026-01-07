@@ -18,6 +18,23 @@
             <form id="edit-form" class="view-mode">
                 <input type="hidden" id="edit-id">
 
+                <!-- TOP STATUS AREA -->
+                <div class="top-status-bar">
+                    <div class="form-group no-label">
+                        <select id="edit-status-top" class="status-select-top">
+                            <option value="LEAD">LEAD (Interesse)</option>
+                            <option value="REQUEST">REQUEST (Konkrete Anfrage)</option>
+                            <option value="OFFER">OFFER (Angebot)</option>
+                            <option value="RESERVED">RESERVED (Option)</option>
+                            <option value="FIX">FIX (Gebucht)</option>
+                            <option value="DECLINED">DECLINED (Abgesagt)</option>
+                            <option value="BILLABLE">BILLABLE (Abrechenbar)</option>
+                            <option value="PAYED">PAYED (Bezahlt)</option>
+                            <option value="SONDER">SONDER (Sonderfall)</option>
+                        </select>
+                    </div>
+                </div>
+
                 <!-- SECTION: CONTENT -->
                 <h3 class="form-section-title">Inhalt & Event</h3>
 
@@ -159,22 +176,7 @@
                     <textarea id="edit-todo" rows="3" placeholder="Offene Punkte..."></textarea>
                 </div>
 
-                <!-- SECTION: META -->
-                <h3 class="form-section-title">Metadaten</h3>
-                <div class="form-group">
-                    <label>Status</label>
-                    <select id="edit-status">
-                        <option value="LEAD">LEAD (Interesse)</option>
-                        <option value="REQUEST">REQUEST (Konkrete Anfrage)</option>
-                        <option value="OFFER">OFFER (Angebot)</option>
-                        <option value="RESERVED">RESERVED (Option)</option>
-                        <option value="FIX">FIX (Gebucht)</option>
-                        <option value="DECLINED">DECLINED (Abgesagt)</option>
-                        <option value="BILLABLE">BILLABLE (Abrechenbar)</option>
-                        <option value="PAYED">PAYED (Bezahlt)</option>
-                        <option value="SONDER">SONDER (Sonderfall)</option>
-                    </select>
-                </div>
+                <!-- Form actions are now handled in footer -->
 
                 <div class="form-group">
                     <label>Kontakt</label>

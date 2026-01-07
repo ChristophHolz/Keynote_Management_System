@@ -154,11 +154,10 @@
                 const statusTd = document.createElement('td');
                 statusTd.appendChild(select);
 
+                // Build row content
                 row.innerHTML = `
                     <td>${dateHtml}</td>
-                `;
-                row.appendChild(statusTd);
-                row.innerHTML += `
+                    <td class="status-cell"></td>
                     <td>
                         <div style="font-weight: 600;">${ev.event}</div>
                         <div style="font-size: 0.85rem; color: var(--text-muted);">${ev.finalTitle || ev.theme || ''}</div>
@@ -167,6 +166,9 @@
                     <td><span class="fee-pill">${ev.fee ? ev.fee + ' €' : 'TBD'}</span></td>
                     <td>${entitiesHtml}</td>
                 `;
+
+                // Inject the interactive select into the placeholder
+                row.querySelector('.status-cell').appendChild(select);
                 body.appendChild(row);
             });
 

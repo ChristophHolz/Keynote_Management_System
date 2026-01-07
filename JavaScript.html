@@ -288,6 +288,37 @@
                 document.getElementById('edit-travel').value = tbd(item.travelPlan);
                 document.getElementById('edit-entities').value = tbd(item.eventEntities);
 
+                // Populate Top Status
+                const statusTop = document.getElementById('edit-status-top');
+                if (statusTop) {
+                    statusTop.value = item.status || 'LEAD';
+
+                    const statusColors = {
+                        'LEAD': '#95a5a6', 'REQUEST': '#3498db', 'OFFER': '#9b59b6',
+                        'RESERVED': '#f1c40f', 'FIX': '#2ecc71', 'DECLINED': '#e74c3c',
+                        'BILLABLE': '#1abc9c', 'PAYED': '#7f8c8d', 'SONDER': '#e67e22'
+                    };
+
+                    const updateStatusStyle = (val) => {
+                        const color = statusColors[val] || '#95a5a6';
+                        statusTop.style.color = color;
+                        statusTop.style.borderColor = color;
+                        statusTop.style.background = `${color}10`;
+                    };
+                    updateStatusStyle(statusTop.value);
+
+                    statusTop.onchange = async () => {
+                        const newStatus = statusTop.value;
+                        updateStatusStyle(newStatus);
+                        try {
+                            await dataService.updateInquiry(item.id, { Status: newStatus });
+                            console.log('Status updated from detail top:', newStatus);
+                        } catch (err) {
+                            alert('Fehler beim Aktualisieren des Status.');
+                        }
+                    };
+                }
+
                 // Render Sources (Links)
                 const sourcesContainer = document.getElementById('sources-links');
                 if (sourcesContainer) {
