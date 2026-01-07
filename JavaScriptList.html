@@ -2,9 +2,37 @@
     /**
      * JavaScript for Chronological Event List View
      */
+    let allEvents = []; // Store all events for filtering
+    let currentFilters = {
+        year: '',
+        status: '',
+        search: ''
+    };
+
     document.addEventListener('DOMContentLoaded', () => {
         loadEvents();
+        setupFilters();
     });
+
+    function setupFilters() {
+        // Year filter
+        document.getElementById('year-filter').addEventListener('change', (e) => {
+            currentFilters.year = e.target.value;
+            applyFilters();
+        });
+
+        // Status filter
+        document.getElementById('status-filter').addEventListener('change', (e) => {
+            currentFilters.status = e.target.value;
+            applyFilters();
+        });
+
+        // Search filter
+        document.getElementById('search-filter').addEventListener('input', (e) => {
+            currentFilters.search = e.target.value.toLowerCase();
+            applyFilters();
+        });
+    }
 
     async function loadEvents() {
         const loading = document.getElementById('loading');
@@ -24,84 +52,111 @@
                 return;
             }
 
-            // Sort chronologically (oldest first or newest first?)
-            // Usually chronological list is oldest to newest for future events, 
-            // but for a manager, newest (latest) first might be better. 
-            // We'll go with Newest First for now.
-            const sorted = inquiries.sort((a, b) => {
+            // Sort chronologically (newest first)
+            allEvents = inquiries.sort((a, b) => {
                 const dateA = new Date(a.talkDate || 0);
                 const dateB = new Date(b.talkDate || 0);
                 return dateB - dateA;
             });
 
-            body.innerHTML = '';
-            sorted.forEach(ev => {
-                const row = document.createElement('tr');
-                row.onclick = () => window.top.location.href = '<?= ScriptApp.getService().getUrl() ?>?page=detail&id=' + ev.id;
+            // Populate year filter
+            const years = new Set();
+            allEvents.forEach(ev => {
+                const d = new Date(ev.talkDate);
+                if (!isNaN(d.getTime())) {
+                    years.add(d.getFullYear());
+                }
+            });
+            const yearFilter = document.getElementById('year-filter');
+            Array.from(years).sort((a, b) => b - a).forEach(year => {
+                const opt = document.createElement('option');
+                opt.value = year;
+                opt.text = year;
+                yearFilter.appendChild(opt);
+            });
 
-                // Date formatting (clean, two-line)
-                const formatDate = (dateVal) => {
-                    if (!dateVal || dateVal === 'TBD') return 'TBD';
-                    const d = new Date(dateVal);
-                    if (isNaN(d.getTime())) return dateVal;
+            // Initial render
+            renderEvents(allEvents);
 
-                    const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-                    const dayName = days[d.getDay()];
-                    const time = Utilities_formatTime(d);
-                    const date = Utilities_formatDate(d);
+            loading.style.display = 'none';
+            table.style.display = 'table';
+        } catch (error) {
+            console.error(error);
+            loading.innerText = 'Fehler beim Laden der Events.';
+        }
+    }
 
-                    return `<div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">${dayName}, ${time}</div>
+    function renderEvents(events) {
+        const body = document.getElementById('event-list-body');
+        body.innerHTML = '';
+
+        events.forEach(ev => {
+            const row = document.createElement('tr');
+            row.onclick = () => window.top.location.href = '<?= ScriptApp.getService().getUrl() ?>?page=detail&id=' + ev.id;
+
+            // Date formatting (clean, two-line)
+            const formatDate = (dateVal) => {
+                if (!dateVal || dateVal === 'TBD') return 'TBD';
+                const d = new Date(dateVal);
+                if (isNaN(d.getTime())) return dateVal;
+
+                const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+                const dayName = days[d.getDay()];
+                const time = Utilities_formatTime(d);
+                const date = Utilities_formatDate(d);
+
+                return `<div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">${dayName}, ${time}</div>
                             <div style="font-weight: 600;">${date}</div>`;
-                };
+            };
 
-                // Helper for time/date parts
-                function Utilities_formatTime(d) {
-                    return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+            // Helper for time/date parts
+            function Utilities_formatTime(d) {
+                return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+            }
+            function Utilities_formatDate(d) {
+                return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            }
+
+            const dateHtml = formatDate(ev.talkDate);
+
+            // Entities parsing
+            let entitiesHtml = '';
+            try {
+                const ent = typeof ev.eventEntities === 'string' ?
+                    (ev.eventEntities.startsWith('{') || ev.eventEntities.startsWith('[') ? JSON.parse(ev.eventEntities) : ev.eventEntities) :
+                    ev.eventEntities;
+
+                if (Array.isArray(ent)) {
+                    entitiesHtml = ent.map(e => `<span class="entity-tag">${e.Organisation || e}</span>`).join('');
+                } else if (ent && typeof ent === 'object') {
+                    entitiesHtml = `<span class="entity-tag">${ent.Organisation || ent.Name || 'Kontakt'}</span>`;
+                } else if (ent && ent !== 'TBD') {
+                    entitiesHtml = `<span class="entity-tag">${ent}</span>`;
+                } else {
+                    entitiesHtml = '<span class="text-muted">TBD</span>';
                 }
-                function Utilities_formatDate(d) {
-                    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                }
+            } catch (e) {
+                entitiesHtml = `<span class="entity-tag">${ev.eventEntities}</span>`;
+            }
 
-                const dateHtml = formatDate(ev.talkDate);
+            // Status formatting
+            const status = ev.status || 'LEAD';
+            const statusMap = {
+                'LEAD': { label: 'Interesse', color: '#95a5a6' },
+                'REQUEST': { label: 'Anfrage', color: '#3498db' },
+                'OFFER': { label: 'Angebot', color: '#9b59b6' },
+                'RESERVED': { label: 'Option', color: '#f1c40f' },
+                'FIX': { label: 'Gebucht', color: '#2ecc71' },
+                'DECLINED': { label: 'Abgesagt', color: '#e74c3c' },
+                'BILLABLE': { label: 'Abrechenbar', color: '#1abc9c' },
+                'PAYED': { label: 'Bezahlt', color: '#7f8c8d' },
+                'SONDER': { label: 'Sonder', color: '#e67e22' }
+            };
 
-                // Entities parsing
-                let entitiesHtml = '';
-                try {
-                    const ent = typeof ev.eventEntities === 'string' ?
-                        (ev.eventEntities.startsWith('{') || ev.eventEntities.startsWith('[') ? JSON.parse(ev.eventEntities) : ev.eventEntities) :
-                        ev.eventEntities;
-
-                    if (Array.isArray(ent)) {
-                        entitiesHtml = ent.map(e => `<span class="entity-tag">${e.Organisation || e}</span>`).join('');
-                    } else if (ent && typeof ent === 'object') {
-                        entitiesHtml = `<span class="entity-tag">${ent.Organisation || ent.Name || 'Kontakt'}</span>`;
-                    } else if (ent && ent !== 'TBD') {
-                        entitiesHtml = `<span class="entity-tag">${ent}</span>`;
-                    } else {
-                        entitiesHtml = '<span class="text-muted">TBD</span>';
-                    }
-                } catch (e) {
-                    entitiesHtml = `<span class="entity-tag">${ev.eventEntities}</span>`;
-                }
-
-                // Status formatting
-                const status = ev.status || 'LEAD';
-                const statusMap = {
-                    'LEAD': { label: 'Interesse', color: '#95a5a6' },
-                    'REQUEST': { label: 'Anfrage', color: '#3498db' },
-                    'OFFER': { label: 'Angebot', color: '#9b59b6' },
-                    'RESERVED': { label: 'Option', color: '#f1c40f' },
-                    'FIX': { label: 'Gebucht', color: '#2ecc71' },
-                    'DECLINED': { label: 'Abgesagt', color: '#e74c3c' },
-                    'BILLABLE': { label: 'Abrechenbar', color: '#1abc9c' },
-                    'PAYED': { label: 'Bezahlt', color: '#7f8c8d' },
-                    'SONDER': { label: 'Sonder', color: '#e67e22' }
-                };
-
-                // Create Status Select instead of static badge
-                const select = document.createElement('select');
-                select.className = 'status-select';
-                select.style.cssText = `
+            // Create Status Select instead of static badge
+            const select = document.createElement('select');
+            select.className = 'status-select';
+            select.style.cssText = `
                     background: transparent;
                     color: inherit;
                     border: 1px solid currentColor;
@@ -114,48 +169,48 @@
                     outline: none;
                 `;
 
-                Object.keys(statusMap).forEach(key => {
-                    const opt = document.createElement('option');
-                    opt.value = key;
-                    opt.text = statusMap[key].label;
-                    opt.selected = (key === status);
-                    select.appendChild(opt);
-                });
+            Object.keys(statusMap).forEach(key => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.text = statusMap[key].label;
+                opt.selected = (key === status);
+                select.appendChild(opt);
+            });
 
-                // Update styling based on initial selection
-                const applyStatusStyle = (val) => {
-                    const info = statusMap[val] || { label: val, color: '#95a5a6' };
-                    select.style.color = info.color;
-                    select.style.borderColor = info.color;
-                    select.style.background = `${info.color}10`;
-                };
-                applyStatusStyle(status);
+            // Update styling based on initial selection
+            const applyStatusStyle = (val) => {
+                const info = statusMap[val] || { label: val, color: '#95a5a6' };
+                select.style.color = info.color;
+                select.style.borderColor = info.color;
+                select.style.background = `${info.color}10`;
+            };
+            applyStatusStyle(status);
 
-                select.onclick = (e) => e.stopPropagation();
-                select.onchange = async (e) => {
-                    e.stopPropagation();
-                    const newStatus = e.target.value;
-                    applyStatusStyle(newStatus);
+            select.onclick = (e) => e.stopPropagation();
+            select.onchange = async (e) => {
+                e.stopPropagation();
+                const newStatus = e.target.value;
+                applyStatusStyle(newStatus);
 
-                    try {
-                        await new Promise((resolve, reject) => {
-                            google.script.run
-                                .withSuccessHandler(resolve)
-                                .withFailureHandler(reject)
-                                .updateInquiry(ev.id, { Status: newStatus });
-                        });
-                        console.log(`Status updated to ${newStatus} for ${ev.id}`);
-                    } catch (err) {
-                        alert('Fehler beim Aktualisieren des Status.');
-                        console.error(err);
-                    }
-                };
+                try {
+                    await new Promise((resolve, reject) => {
+                        google.script.run
+                            .withSuccessHandler(resolve)
+                            .withFailureHandler(reject)
+                            .updateInquiry(ev.id, { Status: newStatus });
+                    });
+                    console.log(`Status updated to ${newStatus} for ${ev.id}`);
+                } catch (err) {
+                    alert('Fehler beim Aktualisieren des Status.');
+                    console.error(err);
+                }
+            };
 
-                const statusTd = document.createElement('td');
-                statusTd.appendChild(select);
+            const statusTd = document.createElement('td');
+            statusTd.appendChild(select);
 
-                // Build row content
-                row.innerHTML = `
+            // Build row content
+            row.innerHTML = `
                     <td>${dateHtml}</td>
                     <td class="status-cell"></td>
                     <td>
@@ -167,17 +222,42 @@
                     <td>${entitiesHtml}</td>
                 `;
 
-                // Inject the interactive select into the placeholder
-                row.querySelector('.status-cell').appendChild(select);
-                body.appendChild(row);
+            // Inject the interactive select into the placeholder
+            row.querySelector('.status-cell').appendChild(select);
+            body.appendChild(row);
+        });
+    }
+
+    function applyFilters() {
+        let filtered = allEvents;
+
+        // Filter by year
+        if (currentFilters.year) {
+            filtered = filtered.filter(ev => {
+                const d = new Date(ev.talkDate);
+                return !isNaN(d.getTime()) && d.getFullYear() == currentFilters.year;
             });
-
-            loading.style.display = 'none';
-            table.style.display = 'table';
-
-        } catch (e) {
-            console.error(e);
-            loading.innerText = 'Fehler beim Laden der Daten.';
         }
+
+        // Filter by status
+        if (currentFilters.status) {
+            filtered = filtered.filter(ev => ev.status === currentFilters.status);
+        }
+
+        // Filter by search text
+        if (currentFilters.search) {
+            filtered = filtered.filter(ev => {
+                const searchIn = [
+                    ev.event || '',
+                    ev.finalTitle || '',
+                    ev.theme || '',
+                    ev.location || '',
+                    JSON.stringify(ev.eventEntities || '')
+                ].join(' ').toLowerCase();
+                return searchIn.includes(currentFilters.search);
+            });
+        }
+
+        renderEvents(filtered);
     }
 </script>
