@@ -39,10 +39,30 @@
                 const row = document.createElement('tr');
                 row.onclick = () => window.top.location.href = '<?= ScriptApp.getService().getUrl() ?>?page=detail&id=' + ev.id;
 
-                // Date formatting (clean)
-                const dateStr = ev.talkDate ?
-                    String(ev.talkDate).replace(/(\d{2}:\d{2}):\d{2}.*$/, '$1') :
-                    'TBD';
+                // Date formatting (clean, two-line)
+                const formatDate = (dateVal) => {
+                    if (!dateVal || dateVal === 'TBD') return 'TBD';
+                    const d = new Date(dateVal);
+                    if (isNaN(d.getTime())) return dateVal;
+
+                    const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+                    const dayName = days[d.getDay()];
+                    const time = Utilities_formatTime(d);
+                    const date = Utilities_formatDate(d);
+
+                    return `<div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">${dayName}, ${time}</div>
+                            <div style="font-weight: 600;">${date}</div>`;
+                };
+
+                // Helper for time/date parts
+                function Utilities_formatTime(d) {
+                    return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                }
+                function Utilities_formatDate(d) {
+                    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                }
+
+                const dateHtml = formatDate(ev.talkDate);
 
                 // Entities parsing
                 let entitiesHtml = '';
@@ -135,7 +155,7 @@
                 statusTd.appendChild(select);
 
                 row.innerHTML = `
-                    <td><strong>${dateStr}</strong></td>
+                    <td>${dateHtml}</td>
                 `;
                 row.appendChild(statusTd);
                 row.innerHTML += `
