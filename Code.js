@@ -220,7 +220,7 @@ function getInquiries() {
             }
 
             return item;
-        }).filter(item => item !== null);
+        }).filter(item => item !== null && item.status !== 'DELETE'); // Hide deleted events
 
     } catch (e) {
         Logger.log('Fehler in getInquiries: ' + e.message);
