@@ -10,18 +10,24 @@
             width: 100%;
             padding: 1rem;
             box-sizing: border-box;
+            overflow: visible;
         }
 
         .table-responsive {
             width: 100%;
             overflow-x: auto;
+            overflow-y: hidden;
             border-radius: var(--radius-md);
             background: var(--surface-bg);
             box-shadow: var(--shadow-sm);
+            -webkit-overflow-scrolling: touch;
+            display: block;
         }
 
         .event-table {
             width: 100%;
+            min-width: 900px;
+            /* Minimum width to keep data legible */
             table-layout: fixed;
             border-collapse: collapse;
             background: transparent;
@@ -35,6 +41,7 @@
             border-bottom: 2px solid var(--border-color);
             overflow: hidden;
             text-overflow: ellipsis;
+            /* Prevent unwanted wrapping within cells */
         }
 
         .event-table th {
@@ -54,27 +61,25 @@
             border-bottom: 1px solid var(--border-color);
         }
 
-        /* Column Specifics - High Responsivity Layout */
+        /* Column Specifics */
         .col-date {
-            width: 15%;
-            min-width: 90px;
+            width: 110px;
             color: var(--primary-color);
             font-weight: 600;
         }
 
         .col-status {
-            width: 20%;
-            min-width: 130px;
+            width: 150px;
         }
 
         .col-event-vortrag {
             width: 30%;
-            /* As requested: max 30% */
+            /* Limits width as requested */
         }
 
         .col-kunde-ort {
-            width: 35%;
-            /* Remaining space */
+            width: auto;
+            /* Takes the remaining space */
         }
 
         /* Filter Bar */
