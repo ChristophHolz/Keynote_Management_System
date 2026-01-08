@@ -12,24 +12,45 @@
     document.addEventListener('DOMContentLoaded', () => {
         loadEvents();
         setupFilters();
+        restoreFilters();
     });
+
+    function restoreFilters() {
+        // Restore saved filter values from localStorage
+        const savedYear = localStorage.getItem('listFilterYear');
+        const savedStatus = localStorage.getItem('listFilterStatus');
+        const savedSearch = localStorage.getItem('listFilterSearch');
+
+        if (savedYear) {
+            currentFilters.year = savedYear;
+        }
+        if (savedStatus) {
+            currentFilters.status = savedStatus;
+        }
+        if (savedSearch) {
+            currentFilters.search = savedSearch;
+        }
+    }
 
     function setupFilters() {
         // Year filter
         document.getElementById('year-filter').addEventListener('change', (e) => {
             currentFilters.year = e.target.value;
+            localStorage.setItem('listFilterYear', e.target.value);
             applyFilters();
         });
 
         // Status filter
         document.getElementById('status-filter').addEventListener('change', (e) => {
             currentFilters.status = e.target.value;
+            localStorage.setItem('listFilterStatus', e.target.value);
             applyFilters();
         });
 
         // Search filter
         document.getElementById('search-filter').addEventListener('input', (e) => {
             currentFilters.search = e.target.value.toLowerCase();
+            localStorage.setItem('listFilterSearch', e.target.value);
             applyFilters();
         });
     }
@@ -75,9 +96,27 @@
                 yearFilter.appendChild(opt);
             });
 
-            // Initial render - hide DELETE status by default
-            const visibleEvents = allEvents.filter(ev => ev.status !== 'DELETE');
-            renderEvents(visibleEvents);
+            // Set filter values from localStorage
+            if (currentFilters.year) {
+                yearFilter.value = currentFilters.year;
+            }
+            const statusFilter = document.getElementById('status-filter');
+            if (currentFilters.status) {
+                statusFilter.value = currentFilters.status;
+            }
+            const searchFilter = document.getElementById('search-filter');
+            if (currentFilters.search) {
+                searchFilter.value = currentFilters.search;
+            }
+
+            // Apply filters (either saved or show all non-DELETE)
+            if (currentFilters.year || currentFilters.status || currentFilters.search) {
+                applyFilters();
+            } else {
+                // Initial render - hide DELETE status by default
+                const visibleEvents = allEvents.filter(ev => ev.status !== 'DELETE');
+                renderEvents(visibleEvents);
+            }
 
             loading.style.display = 'none';
             table.style.display = 'table';
@@ -226,8 +265,58 @@
                     <td>${entitiesHtml}</td>
                 `;
 
-            // Inject the interactive select into the placeholder
-            row.querySelector('.status-cell').appendChild(select);
+            // Inject the interactive select into the placeholder and add fee below
+            const statusCell = row.querySelector('.status-cell');
+            statusCell.appendChild(select);
+
+            // Add fee below dropdown
+            const feeDiv = document.createElement('div');
+            feeDiv.style.cssText = 'margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted); text-align: center;';
+            feeDiv.innerHTML = `<span class="fee-pill">${ev.fee ? ev.fee + ' €' : 'TBD'}</span>`;
+            statusCell.appendChild(feeDiv);
+
+            // Extract client/organization from entities
+            let clientOrg = '';
+            try {
+                const ent = typeof ev.eventEntities === 'string' ?
+                    (ev.eventEntities.startsWith('{') || ev.eventEntities.startsWith('[') ? JSON.parse(ev.eventEntities) : ev.eventEntities) :
+                    ev.eventEntities;
+
+                if (Array.isArray(ent)) {
+                    clientOrg = ent.map(e => e.Organisation || e).join(', ');
+                } else if (ent && typeof ent === 'object') {
+                    clientOrg = ent.Organisation || ent.Name || '';
+                } else if (ent && ent !== 'TBD') {
+                    clientOrg = ent;
+                }
+            } catch (e) {
+                clientOrg = ev.eventEntities || '';
+            }
+
+            // Extract city from location
+            let city = 'TBD';
+            if (ev.location && ev.location !== 'TBD') {
+                const parts = ev.location.split(',');
+                city = parts[parts.length - 1].trim() || parts[0].trim();
+            }
+
+            // Update event/title cell (column 3)
+            const eventCell = row.children[2];
+            eventCell.innerHTML = `
+                <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.event || 'TBD'}</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${clientOrg || ''}</div>
+            `;
+
+            // Update location cell (column 4) - show city only
+            row.children[3].innerHTML = `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${city}</div>`;
+
+            // Update column 6 (organizations) with talk title + org
+            const orgsCell = row.children[5];
+            orgsCell.innerHTML = `
+                <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.finalTitle || ev.theme || ''}</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${clientOrg || ''}</div>
+            `;
+
             body.appendChild(row);
         });
     }
