@@ -203,7 +203,7 @@
                     background: transparent;
                     color: inherit;
                     border: 1px solid currentColor;
-                    padding: 0.1rem 0.3rem; 
+                    padding: 0.05rem 0.3rem; 
                     border-radius: 4px; 
                     font-size: 0.75rem; 
                     font-weight: 600; 
@@ -283,17 +283,17 @@
                 organization = ev.eventEntities || '';
             }
 
-            // Build row content (4 columns: date, status, event, talk/org)
+            // Build row content (4 columns: date, status, event+talk, org+city)
             row.innerHTML = `
                     <td>${dateHtml}</td>
                     <td class="status-cell"></td>
                     <td>
                         <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncate(ev.event)}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${city}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncate(ev.finalTitle || ev.theme || '')}</div>
                     </td>
                     <td>
-                        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncate(ev.finalTitle || ev.theme || '')}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${organization || ''}</div>
+                        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${organization || ''}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${city}</div>
                     </td>
                 `;
 
@@ -303,7 +303,7 @@
 
             // Add fee below dropdown
             const feeDiv = document.createElement('div');
-            feeDiv.style.cssText = 'margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted); text-align: center;';
+            feeDiv.style.cssText = 'margin-top: 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-align: center;';
             feeDiv.textContent = ev.fee ? ev.fee + ' €' : 'TBD';
             statusCell.appendChild(feeDiv);
 
