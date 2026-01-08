@@ -69,7 +69,8 @@
         /* Filter Bar */
         .filter-bar {
             display: flex;
-            gap: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
             margin-bottom: 2rem;
             padding: 1rem 1.5rem;
             background: var(--surface-bg);
@@ -81,6 +82,7 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            flex-shrink: 0;
         }
 
         .filter-group label {
@@ -93,15 +95,17 @@
 
         .filter-group select,
         .filter-group input {
-            padding: 0.5rem 0.75rem;
+            padding: 0.6rem 1rem;
             border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
+            border-radius: var(--radius-md);
             background: var(--bg-color);
             color: var(--text-color);
             font-family: var(--font-sans);
             font-size: 0.9rem;
             outline: none;
             transition: border-color 0.15s;
+            min-width: 180px;
+            flex-grow: 1;
         }
 
         .filter-group select:focus,
