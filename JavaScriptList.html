@@ -252,17 +252,31 @@
             const statusTd = document.createElement('td');
             statusTd.appendChild(select);
 
-            // Build row content
+            // Helper function to truncate text at 20 characters
+            const truncate = (text, maxLength = 20) => {
+                if (!text || text === 'TBD') return text;
+                return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+            };
+
+            // Extract city from location
+            let city = 'TBD';
+            if (ev.location && ev.location !== 'TBD') {
+                const parts = ev.location.split(',');
+                city = parts[parts.length - 1].trim() || parts[0].trim();
+            }
+
+            // Build row content (4 columns: date, status, event, talk/org)
             row.innerHTML = `
                     <td>${dateHtml}</td>
                     <td class="status-cell"></td>
                     <td>
-                        <div style="font-weight: 600;">${ev.event}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted);">${ev.finalTitle || ev.theme || ''}</div>
+                        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncate(ev.event)}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${city}</div>
                     </td>
-                    <td>${ev.location || 'TBD'}</td>
-                    <td><span class="fee-pill">${ev.fee ? ev.fee + ' €' : 'TBD'}</span></td>
-                    <td>${entitiesHtml}</td>
+                    <td>
+                        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncate(ev.finalTitle || ev.theme || '')}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${city}</div>
+                    </td>
                 `;
 
             // Inject the interactive select into the placeholder and add fee below
@@ -275,47 +289,6 @@
             feeDiv.innerHTML = `<span class="fee-pill">${ev.fee ? ev.fee + ' €' : 'TBD'}</span>`;
             statusCell.appendChild(feeDiv);
 
-            // Extract client/organization from entities
-            let clientOrg = '';
-            try {
-                const ent = typeof ev.eventEntities === 'string' ?
-                    (ev.eventEntities.startsWith('{') || ev.eventEntities.startsWith('[') ? JSON.parse(ev.eventEntities) : ev.eventEntities) :
-                    ev.eventEntities;
-
-                if (Array.isArray(ent)) {
-                    clientOrg = ent.map(e => e.Organisation || e).join(', ');
-                } else if (ent && typeof ent === 'object') {
-                    clientOrg = ent.Organisation || ent.Name || '';
-                } else if (ent && ent !== 'TBD') {
-                    clientOrg = ent;
-                }
-            } catch (e) {
-                clientOrg = ev.eventEntities || '';
-            }
-
-            // Extract city from location
-            let city = 'TBD';
-            if (ev.location && ev.location !== 'TBD') {
-                const parts = ev.location.split(',');
-                city = parts[parts.length - 1].trim() || parts[0].trim();
-            }
-
-            // Update event/title cell (column 3)
-            const eventCell = row.children[2];
-            eventCell.innerHTML = `
-                <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.event || 'TBD'}</div>
-                <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${clientOrg || ''}</div>
-            `;
-
-            // Update location cell (column 4) - show city only
-            row.children[3].innerHTML = `<div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${city}</div>`;
-
-            // Update column 6 (organizations) with talk title + org
-            const orgsCell = row.children[5];
-            orgsCell.innerHTML = `
-                <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.finalTitle || ev.theme || ''}</div>
-                <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${clientOrg || ''}</div>
-            `;
 
             body.appendChild(row);
         });
