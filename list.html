@@ -8,18 +8,27 @@
     <style>
         .list-container {
             width: 100%;
-            padding: 1rem 1.5rem;
+            padding: 1rem;
             box-sizing: border-box;
-            overflow-x: hidden;
+        }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: var(--radius-md);
+            background: var(--surface-bg);
+            box-shadow: var(--shadow-sm);
         }
 
         .event-table {
             width: 100%;
+            min-width: 800px;
+            /* Ensures columns stay readable on mobile */
             table-layout: fixed;
             border-collapse: collapse;
             background: transparent;
             border: none;
-            margin-top: 0;
         }
 
         .event-table th,
@@ -36,32 +45,35 @@
             text-transform: uppercase;
             font-size: 0.8rem;
             letter-spacing: 1px;
-            background: transparent;
             color: var(--text-muted);
             font-weight: 600;
             border-bottom: 2px solid var(--border-color);
+            position: sticky;
+            /* Keep header visible if container has height */
+            top: 0;
+            background: var(--surface-bg);
+            z-index: 10;
         }
 
         .event-table td {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             color: var(--text-color);
             vertical-align: top;
         }
 
         /* Column Specifics */
         .col-date {
-            width: 110px;
+            width: 100px;
             color: var(--primary-color);
             font-weight: 600;
         }
 
         .col-status {
-            width: 130px;
-            /* Increased to accommodate dropdown + fee */
+            width: 140px;
         }
 
         .col-event-vortrag {
-            width: 30%;
+            width: 35%;
         }
 
         .col-kunde-ort {
@@ -199,19 +211,21 @@
             </div>
 
             <div id="loading" class="loading-state">Lade Events...</div>
-            <table class="event-table" id="event-table" style="display: none;">
-                <thead>
-                    <tr>
-                        <th class="col-date">Datum</th>
-                        <th class="col-status">Status</th>
-                        <th class="col-event-vortrag">Event / Vortrag</th>
-                        <th class="col-kunde-ort">Kunde / Ort</th>
-                    </tr>
-                </thead>
-                <tbody id="event-list-body">
-                    <!-- Events will be rendered here -->
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table class="event-table" id="event-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th class="col-date">Datum</th>
+                            <th class="col-status">Status</th>
+                            <th class="col-event-vortrag">Event / Vortrag</th>
+                            <th class="col-kunde-ort">Kunde / Ort</th>
+                        </tr>
+                    </thead>
+                    <tbody id="event-list-body">
+                        <!-- Events will be rendered here -->
+                    </tbody>
+                </table>
+            </div>
         </main>
     </div>
 
