@@ -265,6 +265,24 @@
                 city = parts[parts.length - 1].trim() || parts[0].trim();
             }
 
+            // Extract organization from eventEntities
+            let organization = '';
+            try {
+                const ent = typeof ev.eventEntities === 'string' ?
+                    (ev.eventEntities.startsWith('{') || ev.eventEntities.startsWith('[') ? JSON.parse(ev.eventEntities) : ev.eventEntities) :
+                    ev.eventEntities;
+
+                if (Array.isArray(ent)) {
+                    organization = ent.map(e => e.Organisation || e).join(', ');
+                } else if (ent && typeof ent === 'object') {
+                    organization = ent.Organisation || ent.Name || '';
+                } else if (ent && ent !== 'TBD') {
+                    organization = ent;
+                }
+            } catch (e) {
+                organization = ev.eventEntities || '';
+            }
+
             // Build row content (4 columns: date, status, event, talk/org)
             row.innerHTML = `
                     <td>${dateHtml}</td>
@@ -275,7 +293,7 @@
                     </td>
                     <td>
                         <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncate(ev.finalTitle || ev.theme || '')}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${city}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${organization || ''}</div>
                     </td>
                 `;
 
