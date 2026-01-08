@@ -8,8 +8,10 @@
     <style>
         .list-container {
             width: 100%;
-            padding: 1rem;
+            padding: 0.5rem;
+            /* Even less padding */
             box-sizing: border-box;
+            overflow: hidden;
         }
 
         .event-table {
@@ -18,52 +20,59 @@
             border-collapse: collapse;
             background: transparent;
             border: none;
+            margin: 0;
         }
 
         .event-table th,
         .event-table td {
-            padding: 0.75rem 1rem;
+            padding: 0.5rem 0.75rem;
+            /* Highly compact padding */
             text-align: left;
-            border-bottom: 2px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
             overflow: hidden;
             text-overflow: ellipsis;
-            /* Prevent unwanted wrapping within cells */
+            white-space: nowrap;
+        }
+
+        .event-table td div {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .event-table th {
             font-family: 'Oswald', sans-serif;
             text-transform: uppercase;
-            font-size: 0.8rem;
-            letter-spacing: 1px;
+            font-size: 0.75rem;
+            /* Smaller font for headers */
+            letter-spacing: 0.5px;
             color: var(--text-muted);
             font-weight: 600;
             background: var(--surface-bg);
+            border-bottom: 2px solid var(--border-color);
         }
 
         .event-table td {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            /* Smaller font for higher density */
             color: var(--text-color);
-            vertical-align: top;
-            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+            /* Center vertically for better look in small rows */
         }
 
-        /* Column Specifics */
+        /* Column Styles */
         .col-date {
-            width: 15%;
+            width: 85px;
+            /* Fixed and narrow */
             color: var(--primary-color);
             font-weight: 600;
+            font-size: 0.8rem;
         }
 
         .col-status {
-            width: 20%;
-        }
-
-        .col-event-vortrag {
-            width: 30%;
-        }
-
-        .col-kunde-ort {
-            width: 35%;
+            width: 120px;
+            /* Fixed and narrow */
+            text-align: center;
         }
 
         /* Filter Bar */
@@ -172,7 +181,6 @@
                 <div class="filter-group">
                     <label for="year-filter">Jahr:</label>
                     <select id="year-filter">
-                        <option value="">Alle</option>
                         <!-- Populated dynamically -->
                     </select>
                 </div>
@@ -202,6 +210,12 @@
 
             <div id="loading" class="loading-state">Lade Events...</div>
             <table class="event-table" id="event-table" style="display: none;">
+                <colgroup>
+                    <col style="width: 85px;">
+                    <col style="width: 120px;">
+                    <col style="width: 30%;">
+                    <col style="width: auto;">
+                </colgroup>
                 <thead>
                     <tr>
                         <th class="col-date">Datum</th>

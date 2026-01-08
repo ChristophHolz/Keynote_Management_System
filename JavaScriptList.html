@@ -109,14 +109,21 @@
                 searchFilter.value = currentFilters.search;
             }
 
-            // Apply filters (either saved or show all non-DELETE)
-            if (currentFilters.year || currentFilters.status || currentFilters.search) {
-                applyFilters();
-            } else {
-                // Initial render - hide DELETE status by default
-                const visibleEvents = allEvents.filter(ev => ev.status !== 'DELETE');
-                renderEvents(visibleEvents);
+            // Default year selection if nothing is saved
+            if (!currentFilters.year) {
+                const currentYear = new Date().getFullYear().toString();
+                if (years.has(parseInt(currentYear))) {
+                    currentFilters.year = currentYear;
+                } else {
+                    // Fallback to the latest available year
+                    currentFilters.year = Array.from(years).sort((a, b) => b - a)[0].toString();
+                }
+                localStorage.setItem('listFilterYear', currentFilters.year);
+                yearFilter.value = currentFilters.year;
             }
+
+            // Apply filters (mandatory year view)
+            applyFilters();
 
             loading.style.display = 'none';
             table.style.display = 'table';
@@ -140,21 +147,10 @@
                 const d = new Date(dateVal);
                 if (isNaN(d.getTime())) return dateVal;
 
-                const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-                const dayName = days[d.getDay()];
-                const time = Utilities_formatTime(d);
-                const date = Utilities_formatDate(d);
-
-                return `<div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">${dayName}, ${time}</div>
-                            <div style="font-weight: 600;">${date}</div>`;
-            };
-
-            // Helper for time/date parts
-            function Utilities_formatTime(d) {
-                return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-            }
-            function Utilities_formatDate(d) {
-                return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const timeStr = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                const dateStr = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+                // Return only time and day/month for maximum compactness
+                return `<div style="font-weight: 700; color: var(--primary);">${timeStr}</div><div style="font-size: 0.8rem; color: var(--text-muted);">${dateStr}</div>`;
             }
 
             const dateHtml = formatDate(ev.talkDate);
@@ -299,7 +295,7 @@
 
             // Add fee below dropdown
             const feeDiv = document.createElement('div');
-            feeDiv.style.cssText = 'margin-top: 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-align: center;';
+            feeDiv.style.cssText = 'margin-top: 0.2rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-align: center;';
             feeDiv.textContent = ev.fee ? ev.fee + ' €' : 'TBD';
             statusCell.appendChild(feeDiv);
 
@@ -316,7 +312,7 @@
             filtered = filtered.filter(ev => ev.status !== 'DELETE');
         }
 
-        // Filter by year
+        // Filter by year (Mandatory pagination)
         if (currentFilters.year) {
             filtered = filtered.filter(ev => {
                 const d = new Date(ev.talkDate);

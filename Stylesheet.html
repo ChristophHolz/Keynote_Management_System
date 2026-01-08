@@ -40,15 +40,19 @@
         font-family: var(--font-sans);
         min-height: 100vh;
         line-height: 1.6;
-        overflow-x: auto;
+        overflow-x: hidden;
+        /* Prevent horizontal scroll on body */
+        width: 100%;
     }
 
     .app-container {
         width: 100%;
+        max-width: 100vw;
         min-height: 100vh;
         display: flex;
         flex-direction: column;
         padding: 0;
+        overflow-x: hidden;
     }
 
     /* Header */
@@ -56,8 +60,10 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 4rem;
-        padding: 1rem 2rem;
+        margin-bottom: 2rem;
+        padding: 1rem;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .brand {
