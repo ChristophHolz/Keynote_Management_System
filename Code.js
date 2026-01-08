@@ -428,63 +428,111 @@ function previewMerge(id1, id2) {
 
         // Merge Logic Helper
         const merged = {};
+        const d1 = row1[colMap['Talk_Date']] ? new Date(row1[colMap['Talk_Date']]) : null;
+        const d2 = row2[colMap['Talk_Date']] ? new Date(row2[colMap['Talk_Date']]) : null;
+
+        // Determine which row corresponds to the LATER performance (for title/event info)
+        let laterRow = row1;
+        let earlierRow = row2;
+        if (d1 && d2 && d2 > d1) {
+            laterRow = row2;
+            earlierRow = row1;
+        } else if (!d1 && d2) {
+            laterRow = row2;
+            earlierRow = row1;
+        }
 
         // For each column, decide merge strategy
         headers.forEach((header, idx) => {
             const val1 = row1[idx];
             const val2 = row2[idx];
 
-            // Skip ID (will be kept from first record)
+            // ID: Keep from the "main" record (record 1)
             if (header === 'threadId' || header === 'ID') {
                 merged[header] = String(val1);
                 return;
             }
 
-            // Event: Use longer text
-            if (header === 'Event') {
-                merged[header] = String(val1 || '').length >= String(val2 || '').length ? val1 : val2;
+            // Event/Titles: Use information from the LATER event
+            if (header === 'Event' || header === 'Talk_Title' || header === 'Theme') {
+                merged[header] = laterRow[idx] || earlierRow[idx];
                 return;
             }
 
-            // Date: Use earlier date
-            if (header.includes('Date')) {
-                if (val1 && val2) {
-                    merged[header] = new Date(val1) < new Date(val2) ? val1 : val2;
+            // Talk_Date: Use the LATER date (rescheduling rule)
+            if (header === 'Talk_Date') {
+                if (d1 && d2) {
+                    merged[header] = d2 > d1 ? val2 : val1;
                 } else {
                     merged[header] = val1 || val2;
                 }
                 return;
             }
 
+            // Netto_Fee: Use the LOWEST price
+            if (header === 'Netto_Fee') {
+                const n1 = parseFloat(val1);
+                const n2 = parseFloat(val2);
+                if (!isNaN(n1) && !isNaN(n2)) {
+                    merged[header] = Math.min(n1, n2);
+                } else {
+                    merged[header] = val1 || val2;
+                }
+                return;
+            }
+
+            // Notes: Concatenate and add merge markers
+            if (header === 'Notes') {
+                const parts = [];
+                if (val1) parts.push(`[E1]: ${val1}`);
+                if (val2) parts.push(`[E2]: ${val2}`);
+                parts.push(`--- Automatisch zusammengeführt am ${new Date().toLocaleDateString('de-DE')} ---`);
+                merged[header] = parts.join('\n');
+                return;
+            }
+
             // Status: Prefer more advanced status
             if (header === 'Status') {
-                const statusPriority = { 'PAYED': 6, 'BILLABLE': 5, 'FIX': 4, 'RESERVED': 3, 'OPTION': 2, 'LEAD': 1 };
-                const s1 = String(val1 || '').toUpperCase();
-                const s2 = String(val2 || '').toUpperCase();
-                const p1 = statusPriority[s1] || 0;
-                const p2 = statusPriority[s2] || 0;
-                merged[header] = p1 >= p2 ? val1 : val2;
-                return;
-            }
-
-            // Netto_Fee: Use higher value
-            if (header === 'Netto_Fee') {
-                const n1 = parseFloat(val1) || 0;
-                const n2 = parseFloat(val2) || 0;
-                merged[header] = Math.max(n1, n2);
-                return;
-            }
-
-            // Notes: Concatenate
-            if (header === 'Notes') {
-                const notes = [val1, val2].filter(n => n).join(' | ');
-                merged[header] = notes;
+                const statusPriority = { 'PAYED': 6, 'BILLABLE': 5, 'FIX': 4, 'RESERVED': 3, 'OFFER': 2.5, 'OPTION': 2, 'REQUEST': 1.5, 'LEAD': 1 };
+                const s1 = String(row1[idx] || '').toUpperCase();
+                const s2 = String(row2[idx] || '').toUpperCase();
+                merged[header] = (statusPriority[s1] || 0) >= (statusPriority[s2] || 0) ? row1[idx] : row2[idx];
                 return;
             }
 
             // Default: Prefer non-empty value
             merged[header] = val1 || val2;
         });
+
+        // SPECIAL LOGIC: Videoconference Detection vs Negotiation/Briefing
+        const isVC = (evStr) => String(evStr || '').toLowerCase().includes('videokonferenz') || String(evStr || '').toLowerCase().includes('video call');
+        const vcRow = isVC(row1[colMap['Event']]) ? row1 : (isVC(row2[colMap['Event']]) ? row2 : null);
+        const performanceRow = vcRow === row1 ? row2 : (vcRow === row2 ? row1 : null);
+
+        if (vcRow && performanceRow) {
+            const vcDate = vcRow[colMap['Talk_Date']] ? new Date(vcRow[colMap['Talk_Date']]) : null;
+            const inquiryDate = performanceRow[colMap['Inquiry_Date']] ? new Date(performanceRow[colMap['Inquiry_Date']]) : null;
+            const offerDate = performanceRow[colMap['Offer_Date']] ? new Date(performanceRow[colMap['Offer_Date']]) : null;
+            const talkDate = performanceRow[colMap['Talk_Date']] ? new Date(performanceRow[colMap['Talk_Date']]) : null;
+
+            if (vcDate) {
+                // If Inquiry < VC < Offer (or Offer unknown) -> Negotiation
+                if (inquiryDate && vcDate > inquiryDate && (!offerDate || vcDate < offerDate)) {
+                    merged['Negotiation_Date'] = vcDate;
+                    merged['Negotiation_Location'] = 'Videokonferenz';
+                }
+                // If Offer < VC < Talk -> Briefing
+                else if (offerDate && vcDate > offerDate && (!talkDate || vcDate < talkDate)) {
+                    merged['Briefing_Date'] = vcDate;
+                    merged['Briefing_Location'] = 'Videokonferenz';
+                }
+                // Fallback: If only Inquiry is known or everything is unknown -> Negotiation
+                else if (!offerDate || (inquiryDate && vcDate > inquiryDate)) {
+                    merged['Negotiation_Date'] = vcDate;
+                    merged['Negotiation_Location'] = 'Videokonferenz';
+                }
+            }
+        }
 
         return merged;
 
