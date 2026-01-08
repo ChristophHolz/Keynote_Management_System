@@ -10,24 +10,10 @@
             width: 100%;
             padding: 1rem;
             box-sizing: border-box;
-            overflow: visible;
-        }
-
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            overflow-y: hidden;
-            border-radius: var(--radius-md);
-            background: var(--surface-bg);
-            box-shadow: var(--shadow-sm);
-            -webkit-overflow-scrolling: touch;
-            display: block;
         }
 
         .event-table {
             width: 100%;
-            min-width: 900px;
-            /* Minimum width to keep data legible */
             table-layout: fixed;
             border-collapse: collapse;
             background: transparent;
@@ -63,23 +49,21 @@
 
         /* Column Specifics */
         .col-date {
-            width: 110px;
+            width: 15%;
             color: var(--primary-color);
             font-weight: 600;
         }
 
         .col-status {
-            width: 150px;
+            width: 20%;
         }
 
         .col-event-vortrag {
             width: 30%;
-            /* Limits width as requested */
         }
 
         .col-kunde-ort {
-            width: auto;
-            /* Takes the remaining space */
+            width: 35%;
         }
 
         /* Filter Bar */
@@ -213,21 +197,19 @@
             </div>
 
             <div id="loading" class="loading-state">Lade Events...</div>
-            <div class="table-responsive">
-                <table class="event-table" id="event-table" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th class="col-date">Datum</th>
-                            <th class="col-status">Status</th>
-                            <th class="col-event-vortrag">Event / Vortrag</th>
-                            <th class="col-kunde-ort">Kunde / Ort</th>
-                        </tr>
-                    </thead>
-                    <tbody id="event-list-body">
-                        <!-- Events will be rendered here -->
-                    </tbody>
-                </table>
-            </div>
+            <table class="event-table" id="event-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th class="col-date">Datum</th>
+                        <th class="col-status">Status</th>
+                        <th class="col-event-vortrag">Event / Vortrag</th>
+                        <th class="col-kunde-ort">Kunde / Ort</th>
+                    </tr>
+                </thead>
+                <tbody id="event-list-body">
+                    <!-- Events will be rendered here -->
+                </tbody>
+            </table>
         </main>
     </div>
 
