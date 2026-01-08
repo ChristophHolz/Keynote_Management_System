@@ -286,7 +286,7 @@
             // Add fee below dropdown
             const feeDiv = document.createElement('div');
             feeDiv.style.cssText = 'margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-muted); text-align: center;';
-            feeDiv.innerHTML = `<span class="fee-pill">${ev.fee ? ev.fee + ' €' : 'TBD'}</span>`;
+            feeDiv.textContent = ev.fee ? ev.fee + ' €' : 'TBD';
             statusCell.appendChild(feeDiv);
 
 
