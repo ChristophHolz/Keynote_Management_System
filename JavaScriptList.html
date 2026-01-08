@@ -110,16 +110,20 @@
             }
 
             // Default year selection if nothing is saved
-            if (!currentFilters.year) {
+            if (!currentFilters.year && years.size > 0) {
                 const currentYear = new Date().getFullYear().toString();
                 if (years.has(parseInt(currentYear))) {
                     currentFilters.year = currentYear;
                 } else {
                     // Fallback to the latest available year
-                    currentFilters.year = Array.from(years).sort((a, b) => b - a)[0].toString();
+                    const latestYear = Array.from(years).sort((a, b) => b - a)[0];
+                    if (latestYear) currentFilters.year = latestYear.toString();
                 }
-                localStorage.setItem('listFilterYear', currentFilters.year);
-                yearFilter.value = currentFilters.year;
+
+                if (currentFilters.year) {
+                    localStorage.setItem('listFilterYear', currentFilters.year);
+                    yearFilter.value = currentFilters.year;
+                }
             }
 
             // Apply filters (mandatory year view)
