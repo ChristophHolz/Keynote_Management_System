@@ -283,16 +283,16 @@
                 organization = ev.eventEntities || '';
             }
 
-            // Build row content (4 columns: date, status, event+org, talk+city)
+            // Build row content (4 columns: date, status, event+talk, org+city)
             row.innerHTML = `
                     <td>${dateHtml}</td>
                     <td class="status-cell"></td>
                     <td>
                         <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncate(ev.event)}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${organization || ''}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncate(ev.finalTitle || ev.theme || '')}</div>
                     </td>
                     <td>
-                        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncate(ev.finalTitle || ev.theme || '')}</div>
+                        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${organization || ''}</div>
                         <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${city}</div>
                     </td>
                 `;
