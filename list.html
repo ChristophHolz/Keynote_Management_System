@@ -8,11 +8,14 @@
     <style>
         .list-container {
             width: 100%;
-            padding: 1rem 2rem;
+            padding: 1rem 1.5rem;
+            box-sizing: border-box;
+            overflow-x: hidden;
         }
 
         .event-table {
             width: 100%;
+            table-layout: fixed;
             border-collapse: collapse;
             background: transparent;
             border: none;
@@ -21,9 +24,11 @@
 
         .event-table th,
         .event-table td {
-            padding: 1rem 1.5rem;
+            padding: 0.75rem 1rem;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .event-table th {
@@ -45,23 +50,22 @@
 
         /* Column Specifics */
         .col-date {
-            white-space: nowrap;
-            width: 120px;
+            width: 110px;
             color: var(--primary-color);
             font-weight: 600;
         }
 
         .col-status {
-            width: 100px;
+            width: 130px;
+            /* Increased to accommodate dropdown + fee */
         }
 
         .col-event-vortrag {
-            max-width: 30%;
+            width: 30%;
         }
 
-        .col-fee {
-            width: 120px;
-            text-align: right !important;
+        .col-kunde-ort {
+            width: auto;
         }
 
         /* Filter Bar */
@@ -201,7 +205,7 @@
                         <th class="col-date">Datum</th>
                         <th class="col-status">Status</th>
                         <th class="col-event-vortrag">Event / Vortrag</th>
-                        <th>Kunde / Ort</th>
+                        <th class="col-kunde-ort">Kunde / Ort</th>
                     </tr>
                 </thead>
                 <tbody id="event-list-body">
