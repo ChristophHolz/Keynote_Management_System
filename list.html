@@ -15,7 +15,6 @@
         .table-responsive {
             width: 100%;
             overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
             border-radius: var(--radius-md);
             background: var(--surface-bg);
             box-shadow: var(--shadow-sm);
@@ -23,8 +22,6 @@
 
         .event-table {
             width: 100%;
-            min-width: 800px;
-            /* Ensures columns stay readable on mobile */
             table-layout: fixed;
             border-collapse: collapse;
             background: transparent;
@@ -35,7 +32,7 @@
         .event-table td {
             padding: 0.75rem 1rem;
             text-align: left;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 2px solid var(--border-color);
             overflow: hidden;
             text-overflow: ellipsis;
         }
@@ -47,37 +44,37 @@
             letter-spacing: 1px;
             color: var(--text-muted);
             font-weight: 600;
-            border-bottom: 2px solid var(--border-color);
-            position: sticky;
-            /* Keep header visible if container has height */
-            top: 0;
             background: var(--surface-bg);
-            z-index: 10;
         }
 
         .event-table td {
             font-size: 0.9rem;
             color: var(--text-color);
             vertical-align: top;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        /* Column Specifics */
+        /* Column Specifics - High Responsivity Layout */
         .col-date {
-            width: 100px;
+            width: 15%;
+            min-width: 90px;
             color: var(--primary-color);
             font-weight: 600;
         }
 
         .col-status {
-            width: 140px;
+            width: 20%;
+            min-width: 130px;
         }
 
         .col-event-vortrag {
-            width: 35%;
+            width: 30%;
+            /* As requested: max 30% */
         }
 
         .col-kunde-ort {
-            width: auto;
+            width: 35%;
+            /* Remaining space */
         }
 
         /* Filter Bar */
