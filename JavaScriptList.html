@@ -252,12 +252,6 @@
             const statusTd = document.createElement('td');
             statusTd.appendChild(select);
 
-            // Helper function to truncate text at 20 characters
-            const truncate = (text, maxLength = 20) => {
-                if (!text || text === 'TBD') return text;
-                return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-            };
-
             // Extract city from location
             let city = 'TBD';
             if (ev.location && ev.location !== 'TBD') {
@@ -288,8 +282,8 @@
                     <td>${dateHtml}</td>
                     <td class="status-cell"></td>
                     <td>
-                        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncate(ev.event)}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${truncate(ev.finalTitle || ev.theme || '')}</div>
+                        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.event}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${ev.finalTitle || ev.theme || ''}</div>
                     </td>
                     <td>
                         <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${organization || ''}</div>
