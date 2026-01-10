@@ -150,27 +150,52 @@ function getDuplicateCandidates() {
 
 // Preview merged result without saving
 function previewMerge(id1, id2) {
+    const logPrefix = '[Merge.js:previewMerge] ';
     try {
+        Logger.log(logPrefix + 'Starting preview for IDs: ' + id1 + ', ' + id2);
         const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bookings');
         const data = sheet.getDataRange().getValues();
+
+        if (data.length < 1) throw new Error('Keine Daten im Tabellenblatt.');
+
         const headers = data[0];
         const colMap = {};
-        headers.forEach((h, i) => colMap[h] = i);
+        headers.forEach((h, i) => colMap[h.trim()] = i);
+
+        // Flexible column lookup logic (same as getDuplicateCandidates)
+        const findCol = (possibleNames) => {
+            for (const name of possibleNames) {
+                if (colMap[name] !== undefined) return colMap[name];
+            }
+            return undefined;
+        };
+
+        const idxThread = colMap['threadId'];
+        const idxEvent = colMap['Event'];
+
+        if (idxThread === undefined) throw new Error('Spalte "threadId" nicht gefunden.');
+        if (idxEvent === undefined) throw new Error('Spalte "Event" nicht gefunden.');
 
         // Find both rows
         let row1 = null, row2 = null;
         for (let i = 1; i < data.length; i++) {
-            const rowId = String(data[i][colMap['threadId']] || data[i][colMap['ID']]);
+            // Check both threadId and ID for backward compatibility
+            const rowId = String(data[i][idxThread] || (colMap['ID'] !== undefined ? data[i][colMap['ID']] : ''));
             if (rowId === String(id1)) row1 = data[i];
             if (rowId === String(id2)) row2 = data[i];
         }
 
-        if (!row1 || !row2) throw new Error('Einer oder beide Datensätze wurden nicht gefunden.');
+        if (!row1 || !row2) {
+            Logger.log(logPrefix + 'Rows not found. ID1 found: ' + !!row1 + ', ID2 found: ' + !!row2);
+            throw new Error('Einer oder beide Datensätze wurden nicht gefunden.');
+        }
 
         // Merge Logic Helper
         const merged = {};
-        const d1 = row1[colMap['Talk_Date']] ? new Date(row1[colMap['Talk_Date']]) : null;
-        const d2 = row2[colMap['Talk_Date']] ? new Date(row2[colMap['Talk_Date']]) : null;
+        const idxTalk = colMap['Talk_Date'];
+
+        const d1 = (idxTalk !== undefined && row1[idxTalk]) ? new Date(row1[idxTalk]) : null;
+        const d2 = (idxTalk !== undefined && row2[idxTalk]) ? new Date(row2[idxTalk]) : null;
 
         // Determine which row corresponds to the LATER performance (for title/event info)
         let laterRow = row1;
@@ -184,7 +209,10 @@ function previewMerge(id1, id2) {
         }
 
         // For each column, decide merge strategy
-        headers.forEach((header, idx) => {
+        headers.forEach((originalHeader, idx) => {
+            // Use trimmed header for logic, but keep original for writing if needed (though here we just return object)
+            const header = originalHeader.trim();
+
             const val1 = row1[idx];
             const val2 = row2[idx];
 
@@ -247,14 +275,22 @@ function previewMerge(id1, id2) {
 
         // SPECIAL LOGIC: Videoconference Detection vs Negotiation/Briefing
         const isVC = (evStr) => String(evStr || '').toLowerCase().includes('videokonferenz') || String(evStr || '').toLowerCase().includes('video call');
-        const vcRow = isVC(row1[colMap['Event']]) ? row1 : (isVC(row2[colMap['Event']]) ? row2 : null);
+
+        // Safe access to Event column using pre-calculated index
+        const event1 = row1[idxEvent];
+        const event2 = row2[idxEvent];
+
+        const vcRow = isVC(event1) ? row1 : (isVC(event2) ? row2 : null);
         const performanceRow = vcRow === row1 ? row2 : (vcRow === row2 ? row1 : null);
 
         if (vcRow && performanceRow) {
-            const vcDate = vcRow[colMap['Talk_Date']] ? new Date(vcRow[colMap['Talk_Date']]) : null;
-            const inquiryDate = performanceRow[colMap['Request_Date']] ? new Date(performanceRow[colMap['Request_Date']]) : null;
-            const offerDate = performanceRow[colMap['Offer_Date']] ? new Date(performanceRow[colMap['Offer_Date']]) : null;
-            const talkDate = performanceRow[colMap['Talk_Date']] ? new Date(performanceRow[colMap['Talk_Date']]) : null;
+            const idxReq = findCol(['Request_Date', 'Inquiry_Date', 'Contact_Date']);
+            const idxOffer = colMap['Offer_Date'];
+
+            const vcDate = (idxTalk !== undefined && vcRow[idxTalk]) ? new Date(vcRow[idxTalk]) : null;
+            const inquiryDate = (idxReq !== undefined && performanceRow[idxReq]) ? new Date(performanceRow[idxReq]) : null;
+            const offerDate = (idxOffer !== undefined && performanceRow[idxOffer]) ? new Date(performanceRow[idxOffer]) : null;
+            const talkDate = (idxTalk !== undefined && performanceRow[idxTalk]) ? new Date(performanceRow[idxTalk]) : null;
 
             if (vcDate) {
                 // If Inquiry < VC < Offer (or Offer unknown) -> Negotiation
@@ -278,8 +314,8 @@ function previewMerge(id1, id2) {
         return merged;
 
     } catch (e) {
-        Logger.log('Error in previewMerge: ' + e.message);
-        throw e;
+        Logger.log(logPrefix + 'ERROR: ' + e.message + '\n' + e.stack);
+        throw new Error(e.message);
     }
 }
 
