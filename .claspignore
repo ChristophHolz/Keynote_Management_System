@@ -10,6 +10,7 @@
 !*.html
 !secrets.js
 !triggers.js
+!Merge.js
 
 # Explicitly ignore common non-project files
 .git/**

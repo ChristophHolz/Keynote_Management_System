@@ -1,3 +1,4 @@
+
 /**
  * DUPLICATE MERGE FEATURE
  * Logic for detecting and merging duplicate event entries.
@@ -52,13 +53,23 @@ function getDuplicateCandidates() {
 
         const headers = data[0];
         const colMap = {};
-        headers.forEach((h, i) => colMap[h] = i);
+        headers.forEach((h, i) => colMap[h.trim()] = i);
 
-        // Check required columns
-        const requiredCol = ['threadId', 'Event', 'Talk_Date', 'Request_Date'];
-        const missing = requiredCol.filter(c => colMap[c] === undefined);
-        if (missing.length > 0) {
-            throw new Error('Erforderliche Spalten fehlen: ' + missing.join(', '));
+        // Flexible column lookup helper
+        const findCol = (possibleNames) => {
+            for (const name of possibleNames) {
+                if (colMap[name] !== undefined) return colMap[name];
+            }
+            return undefined;
+        };
+
+        const idxThread = colMap['threadId'];
+        const idxEvent = colMap['Event'];
+        const idxTalk = colMap['Talk_Date'];
+        const idxReq = findCol(['Request_Date', 'Inquiry_Date', 'Contact_Date']);
+
+        if (idxThread === undefined || idxEvent === undefined) {
+            throw new Error('Kritische Spalten fehlen (threadId oder Event). Vorhanden: ' + headers.join(', '));
         }
 
         const rows = data.slice(1);
@@ -86,16 +97,16 @@ function getDuplicateCandidates() {
         // Compare pairs
         for (let i = 0; i < processedRows.length; i++) {
             for (let j = i + 1; j < processedRows.length; j++) {
-                const id1 = getVal(processedRows[i], 'threadId');
-                const id2 = getVal(processedRows[j], 'threadId');
+                const id1 = processedRows[i][idxThread];
+                const id2 = processedRows[j][idxThread];
 
                 if (!id1 || !id2) continue;
 
-                const event1 = getVal(processedRows[i], 'Event') || '';
-                const event2 = getVal(processedRows[j], 'Event') || '';
+                const event1 = processedRows[i][idxEvent] || '';
+                const event2 = processedRows[j][idxEvent] || '';
 
-                const date1 = getVal(processedRows[i], 'Talk_Date') || getVal(processedRows[i], 'Request_Date');
-                const date2 = getVal(processedRows[j], 'Talk_Date') || getVal(processedRows[j], 'Request_Date');
+                const date1 = (idxTalk !== undefined ? processedRows[i][idxTalk] : null) || (idxReq !== undefined ? processedRows[i][idxReq] : null);
+                const date2 = (idxTalk !== undefined ? processedRows[j][idxTalk] : null) || (idxReq !== undefined ? processedRows[j][idxReq] : null);
 
                 // Calculate similarity
                 const nameSimilarity = stringSimilarity(event1, event2);
@@ -107,7 +118,7 @@ function getDuplicateCandidates() {
                     const d2 = new Date(date2);
                     if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
                         const daysDiff = Math.abs((d1 - d2) / (1000 * 60 * 60 * 24));
-                        dateMatch = daysDiff <= 14; // Increased to 14 days
+                        dateMatch = daysDiff <= 14;
                     }
                 }
 
