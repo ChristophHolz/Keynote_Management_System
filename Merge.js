@@ -40,19 +40,35 @@ function stringSimilarity(str1, str2) {
 
 // Get duplicate candidates
 function getDuplicateCandidates() {
+    const logPrefix = '[Merge.js:getDuplicateCandidates] ';
     try {
-        const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bookings');
-        if (!sheet) throw new Error('Sheet not found');
+        const ss = SpreadsheetApp.getActiveSpreadsheet();
+        const sheet = ss.getSheetByName('Bookings');
+        if (!sheet) throw new Error('Tabellenblatt "Bookings" nicht gefunden.');
 
         const data = sheet.getDataRange().getValues();
-        if (data.length < 3) return []; // Need at least 2 data rows
+        Logger.log(logPrefix + 'Data rows found: ' + data.length);
+        if (data.length < 3) return [];
 
         const headers = data[0];
         const colMap = {};
         headers.forEach((h, i) => colMap[h] = i);
 
+        // Check required columns
+        const requiredCol = ['threadId', 'Event', 'Talk_Date', 'Request_Date'];
+        const missing = requiredCol.filter(c => colMap[c] === undefined);
+        if (missing.length > 0) {
+            throw new Error('Erforderliche Spalten fehlen: ' + missing.join(', '));
+        }
+
         const rows = data.slice(1);
         const candidates = [];
+
+        // GAS has a 30s timeout for web app calls. 
+        // If there are too many rows, O(N^2) comparison will fail.
+        // We limit to the latest 300 rows for now.
+        const maxRows = 300;
+        const processedRows = rows.length > maxRows ? rows.slice(-maxRows) : rows;
 
         // Helper for safe column access
         const getVal = (row, header) => {
@@ -67,36 +83,35 @@ function getDuplicateCandidates() {
             return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString('de-DE');
         };
 
-        // Compare all pairs
-        for (let i = 0; i < rows.length; i++) {
-            for (let j = i + 1; j < rows.length; j++) {
-                const id1 = getVal(rows[i], 'threadId');
-                const id2 = getVal(rows[j], 'threadId');
+        // Compare pairs
+        for (let i = 0; i < processedRows.length; i++) {
+            for (let j = i + 1; j < processedRows.length; j++) {
+                const id1 = getVal(processedRows[i], 'threadId');
+                const id2 = getVal(processedRows[j], 'threadId');
 
                 if (!id1 || !id2) continue;
 
-                const event1 = getVal(rows[i], 'Event') || '';
-                const event2 = getVal(rows[j], 'Event') || '';
+                const event1 = getVal(processedRows[i], 'Event') || '';
+                const event2 = getVal(processedRows[j], 'Event') || '';
 
-                const date1 = getVal(rows[i], 'Talk_Date') || getVal(rows[i], 'Request_Date');
-                const date2 = getVal(rows[j], 'Talk_Date') || getVal(rows[j], 'Request_Date');
+                const date1 = getVal(processedRows[i], 'Talk_Date') || getVal(processedRows[i], 'Request_Date');
+                const date2 = getVal(processedRows[j], 'Talk_Date') || getVal(processedRows[j], 'Request_Date');
 
                 // Calculate similarity
                 const nameSimilarity = stringSimilarity(event1, event2);
 
-                // Check date proximity (within 7 days)
+                // Date proximity check
                 let dateMatch = false;
                 if (date1 && date2) {
                     const d1 = new Date(date1);
                     const d2 = new Date(date2);
                     if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
                         const daysDiff = Math.abs((d1 - d2) / (1000 * 60 * 60 * 24));
-                        dateMatch = daysDiff <= 7;
+                        dateMatch = daysDiff <= 14; // Increased to 14 days
                     }
                 }
 
-                // Flag as duplicate if name similarity > 80% AND dates match
-                if (nameSimilarity >= 80 && dateMatch) {
+                if (nameSimilarity >= 85 && dateMatch) {
                     candidates.push({
                         id1: String(id1),
                         id2: String(id2),
@@ -108,15 +123,17 @@ function getDuplicateCandidates() {
                     });
                 }
             }
+
+            // Safety break if we found plenty
+            if (candidates.length > 50) break;
         }
 
-        // Sort by similarity (highest first)
         candidates.sort((a, b) => b.similarity - a.similarity);
         return candidates;
 
     } catch (e) {
-        Logger.log('Error in getDuplicateCandidates: ' + e.message + '\n' + e.stack);
-        throw e;
+        Logger.log(logPrefix + 'ERROR: ' + e.message + '\n' + e.stack);
+        throw new Error(e.message);
     }
 }
 

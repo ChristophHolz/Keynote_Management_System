@@ -107,7 +107,10 @@
                     renderDuplicates(duplicates);
                 } catch (error) {
                     console.error(error);
-                    container.innerHTML = '<div style="padding: 3rem; text-align: center; color: #ef4444;">Fehler beim Laden der Duplikate.</div>';
+                    container.innerHTML = `<div style="padding: 3rem; text-align: center; color: #ef4444;">
+                        <p style="font-weight: bold;">Fehler beim Laden der Duplikate.</p>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">${error.message || error}</p>
+                    </div>`;
                 }
             }
 
