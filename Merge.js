@@ -60,6 +60,13 @@ function getDuplicateCandidates() {
             return idx !== undefined ? row[idx] : null;
         };
 
+        // Helper for safe date display
+        const safeDate = (dateVal) => {
+            if (!dateVal || dateVal === 'TBD') return 'N/A';
+            const d = new Date(dateVal);
+            return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString('de-DE');
+        };
+
         // Compare all pairs
         for (let i = 0; i < rows.length; i++) {
             for (let j = i + 1; j < rows.length; j++) {
@@ -82,8 +89,10 @@ function getDuplicateCandidates() {
                 if (date1 && date2) {
                     const d1 = new Date(date1);
                     const d2 = new Date(date2);
-                    const daysDiff = Math.abs((d1 - d2) / (1000 * 60 * 60 * 24));
-                    dateMatch = daysDiff <= 7;
+                    if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+                        const daysDiff = Math.abs((d1 - d2) / (1000 * 60 * 60 * 24));
+                        dateMatch = daysDiff <= 7;
+                    }
                 }
 
                 // Flag as duplicate if name similarity > 80% AND dates match
@@ -94,8 +103,8 @@ function getDuplicateCandidates() {
                         event1: String(event1),
                         event2: String(event2),
                         similarity: nameSimilarity,
-                        date1: date1 ? new Date(date1).toLocaleDateString('de-DE') : 'N/A',
-                        date2: date2 ? new Date(date2).toLocaleDateString('de-DE') : 'N/A'
+                        date1: safeDate(date1),
+                        date2: safeDate(date2)
                     });
                 }
             }
@@ -106,7 +115,7 @@ function getDuplicateCandidates() {
         return candidates;
 
     } catch (e) {
-        Logger.log('Error in getDuplicateCandidates: ' + e.message);
+        Logger.log('Error in getDuplicateCandidates: ' + e.message + '\n' + e.stack);
         throw e;
     }
 }
