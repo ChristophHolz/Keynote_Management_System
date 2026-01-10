@@ -54,19 +54,25 @@ function getDuplicateCandidates() {
         const rows = data.slice(1);
         const candidates = [];
 
+        // Helper for safe column access
+        const getVal = (row, header) => {
+            const idx = colMap[header];
+            return idx !== undefined ? row[idx] : null;
+        };
+
         // Compare all pairs
         for (let i = 0; i < rows.length; i++) {
             for (let j = i + 1; j < rows.length; j++) {
-                const id1 = rows[i][colMap['threadId']] || rows[i][colMap['ID']];
-                const id2 = rows[j][colMap['threadId']] || rows[j][colMap['ID']];
+                const id1 = getVal(rows[i], 'threadId');
+                const id2 = getVal(rows[j], 'threadId');
 
                 if (!id1 || !id2) continue;
 
-                const event1 = rows[i][colMap['Event']] || '';
-                const event2 = rows[j][colMap['Event']] || '';
+                const event1 = getVal(rows[i], 'Event') || '';
+                const event2 = getVal(rows[j], 'Event') || '';
 
-                const date1 = rows[i][colMap['Talk_Date']] || rows[i][colMap['Event_Date']];
-                const date2 = rows[j][colMap['Talk_Date']] || rows[j][colMap['Event_Date']];
+                const date1 = getVal(rows[i], 'Talk_Date') || getVal(rows[i], 'Request_Date');
+                const date2 = getVal(rows[j], 'Talk_Date') || getVal(rows[j], 'Request_Date');
 
                 // Calculate similarity
                 const nameSimilarity = stringSimilarity(event1, event2);
@@ -249,16 +255,22 @@ function confirmMerge(id1, id2, mergedData) {
         const colMap = {};
         headers.forEach((h, i) => colMap[h] = i + 1); // 1-indexed for getRange
 
+        // Helper for safe row ID retrieval
+        const getRowId = (row) => {
+            const idx = colMap['threadId'];
+            return idx !== undefined ? String(row[idx - 1] || '') : '';
+        };
+
         // Find row indices to delete
         let rowIndex1 = -1, rowIndex2 = -1;
         for (let i = 1; i < data.length; i++) {
-            const rowId = String(data[i][colMap['threadId'] - 1] || data[i][colMap['ID'] - 1]);
+            const rowId = getRowId(data[i]);
             if (rowId === String(id1)) rowIndex1 = i + 1; // 1-indexed
             if (rowId === String(id2)) rowIndex2 = i + 1;
         }
 
         if (rowIndex1 === -1 || rowIndex2 === -1) {
-            throw new Error('Kann Zeilen zum Zusammenführen nicht finden.');
+            throw new Error('Kann Zeilen zum Zusammenführen nicht finden (ID: ' + id1 + ' oder ' + id2 + ').');
         }
 
         // Write merged data to first row
