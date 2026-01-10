@@ -187,6 +187,11 @@
             };
 
             function displayPreview(preview) {
+                console.log('Displaying preview:', preview);
+                if (!preview) {
+                    alert('Fehler: Vorschau-Daten sind leer (null/undefined).');
+                    return;
+                }
                 const content = document.getElementById('preview-content');
 
                 const fields = [
